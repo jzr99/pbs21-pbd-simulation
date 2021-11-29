@@ -73,10 +73,10 @@ class DistanceConstraints:
                 d = links[k]
                 index = min(max(i + d, 0), ti.Vector([N - 1, N - 1]))
                 flat_index = index2flat(index[0], index[1])
-                self.bend_indices[flat_index + k][0] = index2flat(i[0], i[1])
-                self.bend_indices[flat_index + k][1] = flat_index
+                self.edge_indices[flat_index + k][0] = index2flat(i[0], i[1])
+                self.edge_indices[flat_index + k][1] = flat_index
                 # without consider length
-                self.bend_indices[flat_index + k][2] = L * float(d).norm()
+                self.edge_indices[flat_index + k][2] = L * float(d).norm()
 
     def project(self):
         EPSILON = 1e-8
