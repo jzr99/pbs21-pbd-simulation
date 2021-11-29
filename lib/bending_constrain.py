@@ -17,7 +17,7 @@ fdamp = ti.Vector.field(3, float, (N, N))
 
 num_triangles = (N - 1) * (N - 1) * 2
 indices = ti.Vector.field(3, int, num_triangles)
-bend_indices = ti.Vector.field(5, float, 3*num_triangles)
+# bend_indices = ti.Vector.field(5, float, 3*num_triangles)
 
 for i, j in ti.ndrange(N, N):
     x[i, j] *= 0
@@ -83,29 +83,29 @@ class BendingConstraints:
                 x1, x2 = flat2index(p4_1)
                 if x1 < N - 1 and x1 > 0 and x2 < N - 1 and x2 > 0:
                     constrain_id = i * 3
-                    bend_indices[constrain_id][0] = p1
-                    bend_indices[constrain_id][1] = p2
-                    bend_indices[constrain_id][2] = p3
-                    bend_indices[constrain_id][3] = p4_1
-                    bend_indices[constrain_id][4] = calc_angle(p1, p2, p3, p4_1)
+                    self.bend_indices[constrain_id][0] = p1
+                    self.bend_indices[constrain_id][1] = p2
+                    self.bend_indices[constrain_id][2] = p3
+                    self.bend_indices[constrain_id][3] = p4_1
+                    self.bend_indices[constrain_id][4] = calc_angle(p1, p2, p3, p4_1)
                 x1, x2 = flat2index(p4_3)
                 if x1 < N - 1 and x1 > 0 and x2 < N - 1 and x2 > 0:
                     # (p1, p3, p2, p4_3)
                     constrain_id = i * 3 + 1
-                    bend_indices[constrain_id][0] = p1
-                    bend_indices[constrain_id][1] = p3
-                    bend_indices[constrain_id][2] = p2
-                    bend_indices[constrain_id][3] = p4_3
-                    bend_indices[constrain_id][4] = calc_angle(p1, p3, p2, p4_3)
+                    self.bend_indices[constrain_id][0] = p1
+                    self.bend_indices[constrain_id][1] = p3
+                    self.bend_indices[constrain_id][2] = p2
+                    self.bend_indices[constrain_id][3] = p4_3
+                    self.bend_indices[constrain_id][4] = calc_angle(p1, p3, p2, p4_3)
                 x1, x2 = flat2index(p4_2)
                 if x1 < N - 1 and x1 > 0 and x2 < N - 1 and x2 > 0:
                     # (p2, p3, p1, p4_2)
                     constrain_id = i * 3 + 2
-                    bend_indices[constrain_id][0] = p2
-                    bend_indices[constrain_id][1] = p3
-                    bend_indices[constrain_id][2] = p1
-                    bend_indices[constrain_id][3] = p4_2
-                    bend_indices[constrain_id][4] = calc_angle(p2, p3, p1, p4_2)
+                    self.bend_indices[constrain_id][0] = p2
+                    self.bend_indices[constrain_id][1] = p3
+                    self.bend_indices[constrain_id][2] = p1
+                    self.bend_indices[constrain_id][3] = p4_2
+                    self.bend_indices[constrain_id][4] = calc_angle(p2, p3, p1, p4_2)
 
             if i % 2 == 0:
                 p1 = indices[i].x
@@ -117,35 +117,37 @@ class BendingConstraints:
                 x1, x2 = flat2index(p4_1)
                 if x1 < N - 1 and x1 > 0 and x2 < N - 1 and x2 > 0:
                     constrain_id = i * 3
-                    bend_indices[constrain_id][0] = p2
-                    bend_indices[constrain_id][1] = p3
-                    bend_indices[constrain_id][2] = p1
-                    bend_indices[constrain_id][3] = p4_1
-                    bend_indices[constrain_id][4] = calc_angle(p2, p3, p1, p4_1)
+                    self.bend_indices[constrain_id][0] = p2
+                    self.bend_indices[constrain_id][1] = p3
+                    self.bend_indices[constrain_id][2] = p1
+                    self.bend_indices[constrain_id][3] = p4_1
+                    self.bend_indices[constrain_id][4] = calc_angle(p2, p3, p1, p4_1)
                 x1, x2 = flat2index(p4_2)
                 if x1 < N - 1 and x1 > 0 and x2 < N - 1 and x2 > 0:
                     constrain_id = i * 3 + 1
-                    bend_indices[constrain_id][0] = p1
-                    bend_indices[constrain_id][1] = p2
-                    bend_indices[constrain_id][2] = p3
-                    bend_indices[constrain_id][3] = p4_2
-                    bend_indices[constrain_id][4] = calc_angle(p1, p2, p3, p4_2)
+                    self.bend_indices[constrain_id][0] = p1
+                    self.bend_indices[constrain_id][1] = p2
+                    self.bend_indices[constrain_id][2] = p3
+                    self.bend_indices[constrain_id][3] = p4_2
+                    self.bend_indices[constrain_id][4] = calc_angle(p1, p2, p3, p4_2)
                 x1, x2 = flat2index(p4_3)
                 if x1 < N - 1 and x1 > 0 and x2 < N - 1 and x2 > 0:
                     # (p2, p3, p1, p4_2)
                     constrain_id = i * 3 + 2
-                    bend_indices[constrain_id][0] = p1
-                    bend_indices[constrain_id][1] = p3
-                    bend_indices[constrain_id][2] = p2
-                    bend_indices[constrain_id][3] = p4_3
-                    bend_indices[constrain_id][4] = calc_angle(p1, p3, p2, p4_3)
+                    self.bend_indices[constrain_id][0] = p1
+                    self.bend_indices[constrain_id][1] = p3
+                    self.bend_indices[constrain_id][2] = p2
+                    self.bend_indices[constrain_id][3] = p4_3
+                    self.bend_indices[constrain_id][4] = calc_angle(p1, p3, p2, p4_3)
         # for c in bend_indices:
         #     print(bend_indices[c])
 
 
     def project(self):
         for i in range(3 * num_triangles):
+            # TODO filter zero constrain
             p1_index, p2_index, p3_index, p4_index, constrain_angle = self.bend_indices[i]
+            p1_index, p2_index, p3_index, p4_index = flat2index(p1_index), flat2index(p2_index), flat2index(p3_index), flat2index(p4_index)
             p1, p2, p3, p4 = x[p1_index], x[p2_index], x[p3_index], x[p4_index]
             p2Xp3 = ti.cross(p2,p3)
             p2Xp4 = ti.cross(p2,p4)
