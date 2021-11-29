@@ -145,8 +145,8 @@ class BendingConstraints:
 
     def project(self):
         for i in range(3 * num_triangles):
-            p1, p2, p3, p4, constrain_angle = self.bend_indices[i]
-            p1, p2, p3, p4 = x[p1], x[p2], x[p3], x[p4]
+            p1_index, p2_index, p3_index, p4_index, constrain_angle = self.bend_indices[i]
+            p1, p2, p3, p4 = x[p1_index], x[p2_index], x[p3_index], x[p4_index]
             p2Xp3 = ti.cross(p2,p3)
             p2Xp4 = ti.cross(p2,p4)
             n1 = p2Xp3 / p2Xp3.norm()
@@ -166,7 +166,7 @@ class BendingConstraints:
             displacements_p3 = (-a * q3) / qSum
             displacements_p4 = (-a * q4) / qSum
             # update replacement
-            x[p1] += displacements_p1 * self.stiffness
-            x[p2] += displacements_p2 * self.stiffness
-            x[p3] += displacements_p3 * self.stiffness
-            x[p4] += displacements_p4 * self.stiffness
+            x[p1_index] += displacements_p1 * self.stiffness
+            x[p2_index] += displacements_p2 * self.stiffness
+            x[p3_index] += displacements_p3 * self.stiffness
+            x[p4_index] += displacements_p4 * self.stiffness
