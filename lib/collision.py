@@ -4,7 +4,6 @@ import taichi as ti
 @ti.func
 def ray_triangle_intersect(ray_origin: ti.Vector, ray_direction: ti.Vector, vertex_index: int, triangle_index: int, mesh):
     """
-
     :param ray_origin: original location of collision vertices before the simulation at this epoch.
     :param ray_direction: normalized moving direction.
     :param vertex_index: int, index of collision vertices in the mesh object.
