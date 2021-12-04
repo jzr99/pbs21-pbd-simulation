@@ -182,10 +182,11 @@ if __name__ == '__main__':
     # X，Z：平面坐标，X控制水平方向，从左到右依次递增；Z控制竖直方向，从后到前依次递增。（原点在初始视角平面的左上角）
     # Y：纵向坐标
     # rescale：放大缩小使用；translation：尺度变换后，物体的平移
-    mesh = Mesh(filename='../obj/sphere.obj', color=[0.5, 0.5, 0.5], rescale=0.10, translation=[0, 0.8, 0])
+    mesh_sphere = Mesh(filename='../obj/sphere.obj', color=[0.5, 0.5, 0.5], rescale=0.1, translation=[0, 0.6, 0])
+    mesh_cloth = Mesh(filename='../obj/cloth.obj', color=[0.5, 0.5, 0.5], rescale=0.1, translation=[0, 1.0, 0])
 
-    rendering_data = mesh.export_for_render()
-    render = Render({'sphere': mesh.export_for_render()})
+    rendering_data = mesh_sphere.export_for_render()
+    render = Render({'sphere': mesh_sphere.export_for_render(), 'cloth': mesh_cloth.export_for_render()})
 
     while True:
         # this conditaional code is very important
