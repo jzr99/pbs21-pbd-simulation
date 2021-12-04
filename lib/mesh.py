@@ -59,6 +59,9 @@ class Mesh:
         self.bounding_box = BoundingBox()
         self.bounding_box.update_bounding_box(self.vertices)
 
+        self.gravity_affected = False
+        self.wind_affected = False
+
     def parse_file(self, filename):
         vertices = []
         uvs = []
@@ -158,6 +161,12 @@ class Mesh:
     def reset(self):
         self.vertices = self.initial_vertices
         clear_field(self.velocities)
+
+    def set_gravity_affected(self, sign: bool):
+        self.gravity_affected = sign
+
+    def set_wind_affected(self, sign: bool):
+        self.wind_affected = sign
 
     @ti.func
     def reset_estimated_vertices(self):
