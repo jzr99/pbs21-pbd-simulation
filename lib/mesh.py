@@ -6,8 +6,8 @@ from collections import defaultdict
 
 from taichi.misc.util import vec
 
-from bounding_box import BoundingBox
-import utils
+from .bounding_box import BoundingBox
+import lib.utils
 
 
 @ti.func

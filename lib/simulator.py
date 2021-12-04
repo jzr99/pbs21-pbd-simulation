@@ -1,6 +1,7 @@
 import taichi as ti
 from lib.mesh import Vertex
-from module import Module
+from lib.module import Module
+from lib.distance_constrain import *
 
 @ti.data_oriented
 class Simulation(object):
@@ -17,6 +18,7 @@ class Simulation(object):
         self.wireframe = False
         self.render = render
         self._mesh_now = None
+        self.constrain_builder =  DistanceConstraintsBuilder(mesh=self.module.simulated_objects[0], stiffness=0.001)
 
     def update(self):
         for mesh in self.module.simulated_objects:
@@ -39,6 +41,7 @@ class Simulation(object):
         for i in ti.grouped(self._mesh_now.velocities):
             self._mesh_now.estimated_vertices[i] = self._mesh_now.vertices[i] + self.timeStep * self._mesh_now.velocities[i]
 
+        self.constrain_builder.project()
         # TODO setup constrain
         # TODO project constraint
         # update velocities and positions

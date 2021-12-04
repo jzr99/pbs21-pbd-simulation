@@ -1,4 +1,4 @@
-from mesh import *
+from lib.mesh import *
 
 class Module:
     def __init__(self) -> None:
