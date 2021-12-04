@@ -61,7 +61,6 @@ def calc_angle(p1, p2, p3, p4):
     return ti.acos(ti.dot(n1, n2))
 
 
-@ti.func
 class BendingConstraints:
     def __init__(self, stiffness):
         # store constraint, each bend_indices has a item of (p1, p2, p3, p4, constrain angle)

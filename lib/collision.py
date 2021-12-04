@@ -58,7 +58,6 @@ def ray_triangle_intersect(ray_origin: ti.Vector, ray_direction: ti.Vector, vert
     }
     return True, info
 
-@ti.func
 class CollisionConstraints:
 
     def __init__(self, index: int, normal: ti.Vector, entry_point: ti.Vector):

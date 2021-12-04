@@ -7,6 +7,7 @@ from collections import defaultdict
 from taichi.misc.util import vec
 
 from bounding_box import BoundingBox
+import utils
 
 
 @ti.func
@@ -122,6 +123,9 @@ class Mesh:
         self.vertices.from_numpy(np.array(vertices))
         self.vertices = self.vertices
 
+        self.estimated_vertices = ti.Vector.field(3, ti.float32, self.num_vertives)
+        self.estimated_vertices.from_numpy(np.array(vertices))
+
         self._normals = ti.Vector.field(3, ti.float32, self.num_face)  # not used
         self._normals.from_numpy(np.array(normals))
 
@@ -156,6 +160,10 @@ class Mesh:
         clear_field(self.velocities)
 
     @ti.func
+    def reset_estimated_vertices(self):
+        utils.copy(self.vertices, self.estimated_vertices)
+
+    @ti.func
     def apply_impulse(self, force):
         for i in ti.ndrange(*self.velocities.shape):
             self.velocities[i] += force
@@ -170,6 +178,7 @@ class Mesh:
 
     def export_for_render(self):
         return self.vertices, self.indices, self.color
+
 
 
 # test

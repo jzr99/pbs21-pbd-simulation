@@ -57,7 +57,6 @@ def flat2index(flat):
 def index2flat(i, j):
     return i * N + j
 
-@ti.func
 class DistanceConstraints:
     def __init__(self, stiffness):
         # store constraint, each bend_indices has a item of (p1, p2, p3, p4, constrain angle)
