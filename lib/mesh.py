@@ -24,10 +24,10 @@ class Vertex:
         self.n = n - 1
 
     def __eq__(self, other: object) -> bool:
-        return self.p == other.p and self.t == other.t and self.n == other.n
+        return self.p == other.p
 
     def __hash__(self) -> int:
-        return hash((self.p, self.t, self.n))
+        return hash(self.p)
 
 
 class Edge:
@@ -36,10 +36,10 @@ class Edge:
         self.v2 = v2
 
     def __eq__(self, other) -> bool:
-        return self.v1 == other.v1 and self.v2 == other.v2
+        return (self.v1 == other.v1 and self.v2 == other.v2) or (self.v1 == other.v2 and self.v2 == other.v1)
 
     def __hash__(self) -> int:
-        return hash((self.v1, self.v2))
+        return hash(self.v1.p + self.v2.p)
 
 
 class Mesh:
@@ -67,7 +67,7 @@ class Mesh:
         vertices = []
         uvs = []
         normals = []
-        edges = []
+        edges = set()
         triangles = []
         adjacent_triangles = defaultdict(list)
 
@@ -90,7 +90,9 @@ class Mesh:
                         e1 = Edge(verts[0], verts[1])
                         e2 = Edge(verts[0], verts[2])
                         e3 = Edge(verts[1], verts[2])
-                        edges.extend([e1, e2, e3])
+                        edges.add(e1)
+                        edges.add(e2)
+                        edges.add(e3)
                         adjacent_triangles[e1].append(verts)
                         adjacent_triangles[e2].append(verts)
                         adjacent_triangles[e3].append(verts)
