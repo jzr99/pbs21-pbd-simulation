@@ -2,6 +2,7 @@ import taichi as ti
 import sys
 import time
 import numpy as np
+from simulator import Simulation
 from collections import defaultdict
 
 from taichi.misc.util import vec
@@ -205,9 +206,12 @@ if __name__ == '__main__':
 
     rendering_data = mesh_sphere.export_for_render()
     render = Render({'sphere': mesh_sphere.export_for_render(), 'cloth': mesh_cloth.export_for_render()})
+    sim = Simulation(mesh_sphere, mesh_cloth, render)
 
     while True:
+        sim.update()
         # this conditaional code is very important
-        if not render.vis.poll_events():
-            break
-        render.vis.update_renderer()
+        # if not render.vis.poll_events():
+        #     break
+        # render.vis.update_renderer()
+
