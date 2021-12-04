@@ -18,7 +18,7 @@ class Simulation(object):
         self.wireframe = False
         self.render = render
         self._mesh_now = None
-        self.constrain_builder =  DistanceConstraintsBuilder(mesh=self.module.simulated_objects[0], stiffness=0.001)
+        self.constrain_builder = DistanceConstraintsBuilder(mesh=self.module.simulated_objects[0], stiffness=0.1)
 
     def update(self):
         for mesh in self.module.simulated_objects:
@@ -42,6 +42,7 @@ class Simulation(object):
             self._mesh_now.estimated_vertices[i] = self._mesh_now.vertices[i] + self.timeStep * self._mesh_now.velocities[i]
 
         self.constrain_builder.project()
+        self._mesh_now.estimated_vertices[0] = self._mesh_now.vertices[0]
         # TODO setup constrain
         # TODO project constraint
         # update velocities and positions

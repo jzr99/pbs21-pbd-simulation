@@ -7,7 +7,7 @@ from collections import defaultdict
 from taichi.misc.util import vec
 
 from .bounding_box import BoundingBox
-import lib.utils
+import lib.utils as util
 
 
 @ti.func
