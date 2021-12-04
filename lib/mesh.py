@@ -125,7 +125,7 @@ class Mesh:
         self._normals = ti.Vector.field(3, ti.float32, self.num_face)  # not used
         self._normals.from_numpy(np.array(normals))
 
-        self._uvs = ti.Vector.field(3, ti.float32, self.num_uvs)  # not used
+        self._uvs = ti.Vector.field(3, ti.float32, self._num_uvs)  # not used
         self._uvs.from_numpy(np.array(uvs) * self.rescale)
 
         self._surface_normals = ti.Vector.field(3, ti.f32, (self.num_face))  # not used
