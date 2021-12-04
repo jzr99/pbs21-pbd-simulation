@@ -188,30 +188,3 @@ class Mesh:
 
     def export_for_render(self):
         return self.vertices, self.indices, self.color
-
-
-
-# test
-from render.render import Render
-
-if __name__ == '__main__':
-    ti.init()
-
-    # X, Y, Z 对应关系
-    # X，Z：平面坐标，X控制水平方向，从左到右依次递增；Z控制竖直方向，从后到前依次递增。（原点在初始视角平面的左上角）
-    # Y：纵向坐标
-    # rescale：放大缩小使用；translation：尺度变换后，物体的平移
-    mesh_sphere = Mesh(filename='../obj/sphere.obj', color=[0.5, 0.5, 0.5], rescale=0.1, translation=[0, 0.6, 0])
-    mesh_cloth = Mesh(filename='../obj/cloth.obj', color=[0.5, 0.5, 0.5], rescale=0.1, translation=[0, 1.0, 0])
-
-    rendering_data = mesh_sphere.export_for_render()
-    render = Render({'sphere': mesh_sphere.export_for_render(), 'cloth': mesh_cloth.export_for_render()})
-    sim = Simulation(mesh_sphere, mesh_cloth, render)
-
-    while True:
-        sim.update()
-        # this conditaional code is very important
-        # if not render.vis.poll_events():
-        #     break
-        # render.vis.update_renderer()
-
