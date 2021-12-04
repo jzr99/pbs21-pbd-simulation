@@ -2,7 +2,6 @@ import taichi as ti
 import sys
 import time
 import numpy as np
-from simulator import Simulation
 from collections import defaultdict
 
 from taichi.misc.util import vec
