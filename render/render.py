@@ -1,5 +1,6 @@
 import open3d as o3d
 
+pause = False
 
 class Render:
     def __init__(self, objs):
@@ -15,7 +16,7 @@ class Render:
         self.vis.create_window()
 
         # pause
-        self.pause = False
+        # self.pause = False
 
         # set callbacks
         self.vis.register_key_callback(ord("R"), self.reset_sim)
@@ -72,8 +73,15 @@ class Render:
         # reset()
         raise NotImplementedError()
 
+    @staticmethod
     def pause_sim(self):
-        self.pause = not self.pause
+        global pause
+        pause = not pause
+
+    @staticmethod
+    def get_pause():
+        global pause
+        return pause
 
     def update(self, objs):
         """
