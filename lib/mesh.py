@@ -7,7 +7,7 @@ from collections import defaultdict
 from taichi.misc.util import vec
 
 from .bounding_box import BoundingBox
-import lib.utils as util
+import lib.utils as utils
 
 
 @ti.func
@@ -174,7 +174,7 @@ class Mesh:
 
     @ti.func
     def reset_estimated_vertices(self):
-        util.copy(self.vertices, self.estimated_vertices)
+        utils.copy(self.vertices, self.estimated_vertices)
 
     @ti.func
     def apply_impulse(self, force):

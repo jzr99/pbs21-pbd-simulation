@@ -2,6 +2,7 @@ import taichi as ti
 from lib.mesh import Vertex
 from lib.module import Module
 from lib.distance_constrain import DistanceConstraintsBuilder
+from lib.bending_constrain import BendingConstraints
 from lib.collision import CollisionConstraints, ray_triangle_intersect
 
 
@@ -11,18 +12,20 @@ class Simulation(object):
     def __init__(self, module: Module, render):
         self.module = module
         self.solver_iterations = 4
+        # self.iteration_field = ti.Vector.field(1, float, self.solver_iterations)
         self.time_step = 0.003
         self.gravity = 0.981
         self.wind_speed = 1.5
         self.velocity_damping = 0.999
         self.stretch_factor = 0.999
         self.bend_factor = 0.3
-        self.collision_threshhold = 1e-2
+        self.collision_threshold = 1e-2
         self.wireframe = False
         self.render = render
         self._mesh_now = None
-        self.collision_constraint = CollisionConstraints(dynamic_meshes=self.module.simulated_objects)
-        self.constrain_builder = DistanceConstraintsBuilder(mesh=self.module.simulated_objects[0], stiffness=0.51)
+        self.collision_constraint = CollisionConstraints(self.module.simulated_objects)
+        self.distance_constraint = DistanceConstraintsBuilder(mesh=self.module.simulated_objects[0], stiffness_factor=0.8, solver_iterations=self.solver_iterations)
+        self.bend_constrain = BendingConstraints(mesh=self.module.simulated_objects[0], bend_factor=0.02, solver_iterations=self.solver_iterations)
 
     def run(self):
         while True:
@@ -49,8 +52,16 @@ class Simulation(object):
                 self._static_mesh = static_mesh
                 self.build_collision_constraints(global_offset)
 
-        # projection, velocity re-compute, damping
-        self.simulate_constraint()
+        # projection
+        for _ in range(self.solver_iterations):
+            for mesh in self.module.simulated_objects:
+                self._mesh_now = mesh
+                self.simulate_constraint()
+
+        # calibration (velocity and position update), friction apply
+        for mesh in self.module.simulated_objects:
+            self._mesh_now = mesh
+            self.simulate_calibration()
 
     @ti.kernel
     def simulate_estimate(self):
@@ -88,19 +99,21 @@ class Simulation(object):
                 v1 = self._static_mesh.vertices[v1_idx]
                 v2 = self._static_mesh.vertices[v2_idx]
                 t = ray_triangle_intersect(ray_origin, ray_direction, v0, v1, v2)
-                if t[0] > 0 and t[0] <= ray.norm() + self.collision_threshhold:
+                if t[0] > 0 and t[0] <= ray.norm() + self.collision_threshold:
                     print('collision flag true', t)
                 # if t >= 0 and ti.abs(t)[0] * 0.5 <= ray.norm() + 0.1:
                 #     print('collision detected !', t)
 
     @ti.kernel
     def simulate_constraint(self):
-        # TODO setup constrain
+        self.distance_constraint.project()
+        self.bend_constrain.project()
 
-        # for i in range(self.solver_iteration):
-        # TODO project constraint
-        self.constrain_builder.project()
+        # fix the (0, 0) of cloth
         self._mesh_now.estimated_vertices[0] = self._mesh_now.vertices[0]
+
+    @ti.kernel
+    def simulate_calibration(self):
         # update velocities and positions
         for i in ti.grouped(self._mesh_now.velocities):
             self._mesh_now.velocities[i] = (self._mesh_now.estimated_vertices[i] - self._mesh_now.vertices[i]) / self.time_step
@@ -108,6 +121,7 @@ class Simulation(object):
             self._mesh_now.vertices[i] = self._mesh_now.estimated_vertices[i]
 
         # TODO Update velocities of colliding vertices
+        ...
 
     def rendering(self):
         update_dict = dict()
