@@ -24,6 +24,4 @@ if __name__ == '__main__':
     render = Render({'static_0': mesh_sphere.export_for_render(), 'simulated_0': mesh_cloth.export_for_render()})
     sim = Simulation(module, render)
 
-
-    while True:
-        sim.update()
+    sim.run()

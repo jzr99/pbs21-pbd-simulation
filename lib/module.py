@@ -17,12 +17,6 @@ class Module:
     def add_inverse_mass(self, inv_mass: float):
         self.inverse_mass.append(inv_mass)
 
-    def add_constraints(self, constraint):
-        self.constraints.append(constraint)
-
-    def add_collision_constraints(self, collision_constraint):
-        self.collision_constraints.append(collision_constraint)
-
     @ti.func
     def reset_estimate_potions(self):
         for mesh in self.simulated_objects:

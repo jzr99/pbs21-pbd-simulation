@@ -50,11 +50,11 @@ class Mesh:
 
         self.parse_file(filename)  # read obj mesh file
 
-        self.initial_vertices = ti.Vector.field(3, ti.f32, self.num_vertives)
+        self.initial_vertices = ti.Vector.field(3, ti.f32, self.num_vertices)
         self.initial_vertices.copy_from(self.vertices)
 
         self.position = ti.field(dtype=ti.f32, shape=(3))  # position of COM
-        self.velocities = ti.Vector.field(3, ti.f32, (self.num_vertives))
+        self.velocities = ti.Vector.field(3, ti.f32, (self.num_vertices))
 
         self.bounding_box = BoundingBox()
         self.bounding_box.update_bounding_box(self.vertices)
@@ -111,15 +111,17 @@ class Mesh:
         print(f'[Object Statistics Before Process]: x {np.mean(x)}, y {np.mean(y)}, z {np.mean(z)}, max_range {max_range} @ {max_xyz}')
 
         # save global variables
-        self.num_vertives = len(vertices)
+        self.num_vertices = len(vertices)
         self.num_face = len(triangles)
         self._num_uvs = len(uvs)  # not used
         self.edges = edges
         self._adjacent_triangles = adjacent_triangles  # not used
 
-        self.triangle = triangles
+        self.triangle = ti.Vector.field(3, ti.int32, self.num_face)
+        triangles_p = [[tri[0].p, tri[1].p, tri[2].p] for tri in triangles]  # self.triangle only saves vertices index, ignore normal and uv
+        self.triangle.from_numpy(np.array(triangles_p))
 
-        self.vertices = ti.Vector.field(3, ti.float32, self.num_vertives)
+        self.vertices = ti.Vector.field(3, ti.float32, self.num_vertices)
         vertices = np.array(vertices)
         vertices[..., 0] = vertices[..., 0] - np.mean(x)
         vertices[..., 1] = vertices[..., 1] - np.mean(y)
@@ -128,7 +130,7 @@ class Mesh:
         self.vertices.from_numpy(np.array(vertices))
         self.vertices = self.vertices
 
-        self.estimated_vertices = ti.Vector.field(3, ti.float32, self.num_vertives)
+        self.estimated_vertices = ti.Vector.field(3, ti.float32, self.num_vertices)
         self.estimated_vertices.from_numpy(np.array(vertices))
 
         self._normals = ti.Vector.field(3, ti.float32, self.num_face)  # not used
@@ -145,8 +147,8 @@ class Mesh:
 
     def generate_surface_normals(self):
         for i in range(self.num_face):
-            vector1 = self.vertices[self.triangle[i][1].p] - self.vertices[self.triangle[i][0].p]
-            vector2 = self.vertices[self.triangle[i][2].p] - self.vertices[self.triangle[i][0].p]
+            vector1 = self.vertices[self.triangle[i][1]] - self.vertices[self.triangle[i][0]]
+            vector2 = self.vertices[self.triangle[i][2]] - self.vertices[self.triangle[i][0]]
             norm = vector1.cross(vector2)
             norm = norm.normalized()
             self._surface_normals[i] = norm
@@ -156,9 +158,9 @@ class Mesh:
         Used for set triangles, each element contains three indexes, specifying the three corner vertices.
         """
         for i in range(self.indices.shape[0]):
-            self.indices[i][0] = self.triangle[i][0].p
-            self.indices[i][1] = self.triangle[i][1].p
-            self.indices[i][2] = self.triangle[i][2].p
+            self.indices[i][0] = self.triangle[i][0]
+            self.indices[i][1] = self.triangle[i][1]
+            self.indices[i][2] = self.triangle[i][2]
 
     def reset(self):
         self.vertices = self.initial_vertices
@@ -172,7 +174,7 @@ class Mesh:
 
     @ti.func
     def reset_estimated_vertices(self):
-        utils.copy(self.vertices, self.estimated_vertices)
+        util.copy(self.vertices, self.estimated_vertices)
 
     @ti.func
     def apply_impulse(self, force):
