@@ -61,7 +61,7 @@ class DistanceConstraintsBuilder:
 
     def __init__(self, mesh, stiffness):
         # store constraint, each bend_indices has a item of (p1, p2, p3, p4, constrain angle)
-        self.edge_indices = ti.Vector.field(3, float, len(mesh.edges))
+        self.edge_indices = ti.Vector.field(3, ti.float32, len(mesh.edges))
         # for i in range(8 * N * N):
         #     self.edge_indices[i] *= 0
         self.mesh = mesh
@@ -69,13 +69,11 @@ class DistanceConstraintsBuilder:
         self.stiffness = stiffness
         self.build_constrain()
 
-
     def build_constrain(self):
         for i, e in enumerate(self.edges):
             self.edge_indices[i][0] = e.v1.p
             self.edge_indices[i][1] = e.v2.p
             self.edge_indices[i][2] = (self.mesh.vertices[e.v1.p] - self.mesh.vertices[e.v2.p]).norm()
-
 
     # def build_constrain(self):
     #     for i in ti.grouped(x):
@@ -93,14 +91,14 @@ class DistanceConstraintsBuilder:
         for i in ti.grouped(self.edge_indices):
             p1_index, p2_index, constrain_length = self.edge_indices[i]
             # p1_index, p2_index = flat2index(p1_index), flat2index(p2_index)
-            p1, p2 = self.mesh.vertices[p1_index], self.mesh.vertices[p2_index]
+            p1, p2 = self.mesh.vertices[int(p1_index)], self.mesh.vertices[int(p2_index)]
             a = (p1 - p2).norm() - constrain_length
             b = (p1 - p2) / ((p1 - p2).norm() + EPSILON)
             # assume p1 and p2 has same mass
             q1 = -a * b
             q2 = a * b
-            self.mesh.estimated_vertices[p1_index] += q1 * self.stiffness
-            self.mesh.estimated_vertices[p2_index] += q2 * self.stiffness
+            self.mesh.estimated_vertices[int(p1_index)] += q1 * self.stiffness
+            self.mesh.estimated_vertices[int(p2_index)] += q2 * self.stiffness
 
 # class DistanceConstraints:
 #     def __init__(self, p1, p2, distance):
@@ -109,4 +107,3 @@ class DistanceConstraintsBuilder:
 #         self.distance = distance
 #
 #     def project(self):
-
