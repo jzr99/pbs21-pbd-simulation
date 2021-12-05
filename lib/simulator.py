@@ -2,6 +2,7 @@ import taichi as ti
 from lib.mesh import Vertex
 from lib.module import Module
 from lib.distance_constrain import *
+from lib.bending_constrain import *
 
 @ti.data_oriented
 class Simulation(object):
@@ -9,6 +10,7 @@ class Simulation(object):
     def __init__(self, module: Module, render):
         self.module = module
         self.solver_iterations = 4
+        # self.iteration_field = ti.Vector.field(1, float, self.solver_iterations)
         self.time_step = 0.003
         self.gravity = 0.981
         self.wind_speed = 1.5
@@ -18,7 +20,8 @@ class Simulation(object):
         self.wireframe = False
         self.render = render
         self._mesh_now = None
-        self.constrain_builder = DistanceConstraintsBuilder(mesh=self.module.simulated_objects[0], stiffness=0.51)
+        self.constrain_builder = DistanceConstraintsBuilder(mesh=self.module.simulated_objects[0], stiffness_factor=0.8, solver_iterations=self.solver_iterations)
+        self.bend_constrain = BendingConstraints(mesh=self.module.simulated_objects[0], bend_factor=0.02, solver_iterations=self.solver_iterations)
 
     def update(self):
         for mesh in self.module.simulated_objects:
@@ -28,6 +31,12 @@ class Simulation(object):
         if not self.render.vis.poll_events():
             exit(-1)
         self.render.vis.update_renderer()
+
+    # @ti.func
+    def apply_constrain(self):
+        for _ in range(self.solver_iterations):
+            self.constrain_builder.project()
+            self.bend_constrain.project()
 
     @ti.kernel
     def simulate(self):
@@ -41,7 +50,9 @@ class Simulation(object):
         for i in ti.grouped(self._mesh_now.velocities):
             self._mesh_now.estimated_vertices[i] = self._mesh_now.vertices[i] + self.time_step * self._mesh_now.velocities[i]
 
-        self.constrain_builder.project()
+        # avoid parallel solver
+        self.apply_constrain()
+
         self._mesh_now.estimated_vertices[0] = self._mesh_now.vertices[0]
         # TODO setup constrain
         # TODO project constraint
