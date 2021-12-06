@@ -81,8 +81,8 @@ class BendingConstraints:
         x3 = self.mesh.vertices[p3]
         x4 = self.mesh.vertices[p4]
         # do not consider x1
-        n1 = x2.cross(x3) / x2.cross(x3).norm()
-        n2 = x2.cross(x4) / x2.cross(x4).norm()
+        n1 = (x2-x1).cross(x3-x1) / (x2-x1).cross(x3-x1).norm()
+        n2 = (x2-x1).cross(x4-x1) / (x2-x1).cross(x4-x1).norm()
         # TODO clamp the n1*n2 in the range of (-1, 1)
         d = n1.dot(n2)
         d = max(min(d, 1.0 - EPSILON), -1.0 + EPSILON)
@@ -189,33 +189,57 @@ class BendingConstraints:
         for i in ti.grouped(self.bend_mask):
             # TODO filter zero constrain
             if self.bend_mask[i][0] == 1:
+                # print('bend_indices', self.bend_indices[i])
                 p1_index, p2_index, p3_index, p4_index, constrain_angle = self.bend_indices[i]
                 # p1_index, p2_index, p3_index, p4_index = flat2index(p1_index), flat2index(p2_index), flat2index(p3_index), flat2index(p4_index)
                 p1, p2, p3, p4 = self.mesh.estimated_vertices[p1_index], self.mesh.estimated_vertices[p2_index], self.mesh.estimated_vertices[p3_index], self.mesh.estimated_vertices[p4_index]
-                p2Xp3 = p2.cross(p3)
-                p2Xp4 = p2.cross(p4)
-                n1 = p2Xp3 / p2Xp3.norm()
-                n2 = p2Xp4 / p2Xp4.norm()
+                # print("p1_old", p1)
+                # print("p2_old", p2)
+                # print("p3_old", p3)
+                # print("p4_old", p4)
+                p2_new = p2 - p1
+                p3_new = p3 - p1
+                p4_new = p4 - p1
+                # print("p1", p1)
+                # print("p2", p2_new)
+                # print("p3", p3_new)
+                # print("p4", p4_new)
+                p2Xp3 = p2_new.cross(p3_new)
+                p2Xp4 = p2_new.cross(p4_new)
+                n1 = p2Xp3 / (p2Xp3.norm() + EPSILON)
+                n2 = p2Xp4 / (p2Xp4.norm() + EPSILON)
                 d = n1.dot(n2)
                 # print("d", d)
                 # d = max(min(d, ti.Vector([1.0-EPSILON])), ti.Vector([-1.0+EPSILON]))
                 d = max(min(d, 1.0 - EPSILON), -1.0 + EPSILON)
                 # print("d", d)
-                q3 = (p2.cross(n2) + d * n1.cross(p2)) / (p2Xp3.norm())
-                q4 = (p2.cross(n1) + d * n2.cross(p2)) / (p2Xp4.norm())
-                q2 = -(p3.cross(n2) + d * n1.cross(p3)) / (p2Xp3.norm()) - (p4.cross(n1) + d * n2.cross(p4)) / (
-                    p2Xp4.norm())
+                q3 = (p2_new.cross(n2) + d * n1.cross(p2_new)) / (p2Xp3.norm()+EPSILON)
+                q4 = (p2_new.cross(n1) + d * n2.cross(p2_new)) / (p2Xp4.norm()+EPSILON)
+                q2 = -(p3_new.cross(n2) + d * n1.cross(p3_new)) / (p2Xp3.norm()+EPSILON) - (p4_new.cross(n1) + d * n2.cross(p4_new)) / (
+                    p2Xp4.norm()+EPSILON)
                 q1 = -q2 - q3 - q4
                 # assume all the point has same mass
                 # TODO clamp the d in the range of (-1, 1)
                 a = ti.sqrt(1.0 - d * d) * (ti.acos(d) - constrain_angle)
+                # print('a', a)
                 qSum = q1.norm_sqr() + q2.norm_sqr() + q3.norm_sqr() + q4.norm_sqr()
+                # qSum = 1000000
+                # print('qSum', qSum)
+                # print("q1", q1)
+                # print("q2", q2)
+                # print("q3", q3)
+                # print("q4", q4)
                 displacements_p1 = (-a * q1) / qSum
                 displacements_p2 = (-a * q2) / qSum
                 displacements_p3 = (-a * q3) / qSum
                 displacements_p4 = (-a * q4) / qSum
+                # displacements_p1 = 0
+                # displacements_p2 = 0
+                # displacements_p3 = 0
+                # displacements_p4 = 0
                 # update replacement
                 # print("bending displacement", displacements_p1, displacements_p2, displacements_p3, displacements_p4)
+                # print('stiffness', self.stiffness)
                 self.mesh.estimated_vertices[p1_index] += displacements_p1 * self.stiffness
                 self.mesh.estimated_vertices[p2_index] += displacements_p2 * self.stiffness
                 self.mesh.estimated_vertices[p3_index] += displacements_p3 * self.stiffness
