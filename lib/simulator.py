@@ -20,7 +20,7 @@ class Simulation(object):
         self.wind_oscillation = 0
         self.velocity_damping = 0.999
         self.stretch_factor = 0.999
-        self.bend_factor = 0.1
+        self.bend_factor = 0.05
         self.collision_threshold = 5e-3
         self.wireframe = False
         self.render = render
@@ -128,7 +128,7 @@ class Simulation(object):
     @ti.kernel
     def simulate_internal_constraint_project(self):
         self.distance_constraint.project()
-        # self.bend_constrain.project()
+        self.bend_constrain.project()
 
         # fix the (0, 0) of cloth
         # self._mesh_now.estimated_vertices[0] = self._mesh_now.vertices[0]
