@@ -52,7 +52,7 @@ def init():
 
     for i, j in ti.ndrange(N, N):
         x[i, j] = ti.Vector(
-            [(i + 0.5) * L - 0.5 * W, (i / 2 + j / 2 + 0.5) * L / ti.sqrt(2) + 1.0, j * L / ti.sqrt(2) - 0.4 * W]
+            [(i + 0.5) * L - 0.5 * W, (j / 2 + 0.5) * L / ti.sqrt(2) + 1.0, j * L / ti.sqrt(2) - 0.4 * W]
         )
 
         if i < N - 1 and j < N - 1:
@@ -189,17 +189,25 @@ ctr.set_lookat([0.0, 0.5, 0.0])
 ctr.set_up([0.0, 1.0, 0.0])
 
 while True:
-    # update_verts()
-    #
-    # if not paused:
-    #     for i in range(steps):
-    #         substep(links_end)
+    update_verts()
 
-    # mesh.vertices = o3d.utility.Vector3dVector(vertices.to_numpy())
-    # mesh.triangles = o3d.utility.Vector3iVector(indices.to_numpy())
-    # mesh.compute_vertex_normals()
-    # mesh.compute_triangle_normals()
-    # vis.update_geometry(mesh)
+    if not paused:
+        for i in range(steps):
+            substep(links_end)
+
+    mesh.vertices = o3d.utility.Vector3dVector(vertices.to_numpy())
+    mesh.triangles = o3d.utility.Vector3iVector(indices.to_numpy())
+    mesh.compute_vertex_normals()
+    mesh.compute_triangle_normals()
+    vis.update_geometry(mesh)
+
+    mesh.compute_vertex_normals()
+    mesh.compute_triangle_normals()
+    sphere.compute_vertex_normals()
+    sphere.compute_triangle_normals()
+    o3d.io.write_triangle_mesh('obj/cloth_large.obj', mesh=mesh)
+    o3d.io.write_triangle_mesh('obj/sphere_large.obj', mesh=sphere)
+    break
 
     if not vis.poll_events():
         break

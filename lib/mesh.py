@@ -3,6 +3,7 @@ import sys
 import time
 import numpy as np
 from collections import defaultdict
+import open3d as o3d
 
 from taichi.misc.util import vec
 
@@ -42,11 +43,12 @@ class Edge:
 
 
 class Mesh:
-    def __init__(self, filename, color, inverse_mass=1.0, rescale=1.0, translation=[0, 0, 0]) -> None:
+    def __init__(self, filename, color, inverse_mass=1.0, rescale=1.0, translation=[0, 0, 0], reverse_triangle_verts=False) -> None:
         self.color = color
         self.inverse_mass = inverse_mass
         self.rescale = rescale
         self.translation = translation
+        self.reverse_triangle_verts = reverse_triangle_verts
 
         self.parse_file(filename)  # read obj mesh file
 
@@ -74,16 +76,22 @@ class Mesh:
             for line in f.readlines():
                 items = line.strip().split(" ")
                 if items[0] == 'v':  # vertex
-                    vertices.append(np.array(items[1:], dtype=np.float32))
+                    vertices.append(np.array(items[1:4], dtype=np.float32))
                 elif items[0] == 'vn':  # vertex normal
-                    normals.append(np.array(items[1:], dtype=np.float32))
+                    normals.append(np.array(items[1:4], dtype=np.float32))
                 elif items[0] == 'vt':  # UV
-                    uvs.append(np.array(items[1:], dtype=np.float32))
+                    uvs.append(np.array(items[1:4], dtype=np.float32))
                 elif items[0] == 'f':
                     verts = []
                     for item in items[1:]:
                         v_items = item.split('/')
+                        if v_items[1] == '':
+                            v_items[1] = '0'
+                        if v_items[2] == '':
+                            v_items[2] = '0'
                         verts.append(Vertex(int(v_items[0]), int(v_items[1]), int(v_items[2])))
+                    if self.reverse_triangle_verts:
+                        verts.reverse()
                     if len(verts) == 3:
                         triangles.append(verts)
                         e1 = Edge(verts[0], verts[1])
@@ -95,6 +103,8 @@ class Mesh:
                         adjacent_triangles[e1].append(verts)
                         adjacent_triangles[e2].append(verts)
                         adjacent_triangles[e3].append(verts)
+
+
 
         # statistic
         x, y, z = [], [], []
@@ -113,6 +123,7 @@ class Mesh:
         # save global variables
         self.num_vertices = len(vertices)
         self.num_face = len(triangles)
+        print('num of ver: {}, num of triangle: {}'.format(self.num_vertices, self.num_face))
         self._num_uvs = len(uvs)  # not used
         self.edges = edges
         self._adjacent_triangles = adjacent_triangles  # not used
@@ -133,14 +144,14 @@ class Mesh:
         self.estimated_vertices = ti.Vector.field(3, ti.float32, self.num_vertices)
         self.estimated_vertices.from_numpy(np.array(vertices))
 
-        self._normals = ti.Vector.field(3, ti.float32, self.num_face)  # not used
-        self._normals.from_numpy(np.array(normals))
-
-        self._uvs = ti.Vector.field(3, ti.float32, self._num_uvs)  # not used
-        self._uvs.from_numpy(np.array(uvs) * self.rescale)
-
-        self._surface_normals = ti.Vector.field(3, ti.f32, (self.num_face))  # not used
-        self.generate_surface_normals()
+        # self._normals = ti.Vector.field(3, ti.float32, self.num_face)  # not used
+        # self._normals.from_numpy(np.array(normals))
+        #
+        # self._uvs = ti.Vector.field(3, ti.float32, self._num_uvs)  # not used
+        # self._uvs.from_numpy(np.array(uvs) * self.rescale)
+        #
+        # self._surface_normals = ti.Vector.field(3, ti.f32, (self.num_face))  # not used
+        # self.generate_surface_normals()
 
         self.indices = ti.Vector.field(3, ti.f32, (self.num_face))
         self.generate_triangle_indices()
@@ -157,10 +168,11 @@ class Mesh:
         """
         Used for set triangles, each element contains three indexes, specifying the three corner vertices.
         """
-        for i in range(self.indices.shape[0]):
-            self.indices[i][0] = self.triangle[i][0]
-            self.indices[i][1] = self.triangle[i][1]
-            self.indices[i][2] = self.triangle[i][2]
+        self.indices = self.triangle
+        # for i in range(self.indices.shape[0]):
+        #     self.indices[i][0] = self.triangle[i][0]
+        #     self.indices[i][1] = self.triangle[i][1]
+        #     self.indices[i][2] = self.triangle[i][2]
 
     def reset(self):
         self.vertices = self.initial_vertices

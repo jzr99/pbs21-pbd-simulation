@@ -4,6 +4,7 @@ import taichi as ti
 @ti.data_oriented
 class CollisionConstraints:
     def __init__(self, dynamic_meshes):
+        self.dynamic_meshes = dynamic_meshes
         num_dynamic_ver = []
         for mesh in dynamic_meshes:
             num_dynamic_ver.append(mesh.num_vertices)
@@ -35,13 +36,49 @@ class CollisionConstraints:
             self.entry_point[i].y = 0
             self.entry_point[i].z = 0
 
-    @ti.func
-    def add_constraint(self):
-        pass
 
     @ti.func
-    def project(self, dynamic_meshes):
-        pass
+    def add_constraint(self, global_index, norm, entry_point):
+        self.has_constraint[global_index] = 1
+        self.surface_norm[global_index] = norm
+        self.entry_point[global_index] = entry_point
+
+    @ti.func
+    def project(self, global_var_idx, p: ti.template()):
+
+        if self.has_constraint[global_var_idx] == 0:
+            pass
+        else:
+            # get the mesh index and vertice index of the constrained vertices
+            mesh_idx = self.mesh_index[global_var_idx]
+            local_ver_idx = self.vertice_index[global_var_idx]
+
+            # apply project
+            entry_to_p = p - self.entry_point[global_var_idx]
+            surface_norm = self.surface_norm[global_var_idx]
+            # if dot product is negative, the collision constraint already been solved.
+            if entry_to_p.dot(surface_norm) >= 0:
+                pass
+            else:
+                disp_length = -entry_to_p.norm()   # todo how much offset do we need push back ?
+                p = p + disp_length * entry_to_p.normalized()
+
+
+    @ti.func
+    def calibrate_colliding_vertices(self, global_var_idx: int, v: ti.template()):
+        if self.has_constraint[global_var_idx] == 0:
+            pass
+
+        else:
+            # get the mesh index and vertice index of the constrained vertices
+            mesh_idx = self.mesh_index[global_var_idx]
+            local_ver_idx = self.vertice_index[global_var_idx]
+
+            # apply velocity reflection
+            surface_norm = self.surface_norm[global_var_idx]
+            v = v - 2 * v.dot(surface_norm) * surface_norm
+
+            # todo if friction and restitution exists
 
 
 @ti.func
@@ -129,7 +166,7 @@ class CollisionConstraints_Wrong:
         p = ti.Vector([0, 0, 0])
         # -----------------------
         p_to_entry = p - self.entry_point
-        p_to_entry_norm = p_to_entry.norm()
+        p_to_entry_norm = p_to_entry.normalized()
 
         # since projection solver run multiple times, this constraint may be solved already.
         if ti.dot(p_to_entry, self.normal) >= 0:

@@ -7,7 +7,7 @@ class Render:
         """
         :param objs: dict()
             {
-             'obj1_name': (vertices: ti.Vector.field, indices)
+             'obj1_name': (vertices: ti.Vector.field, indices: ti.Vector.field, color: optional)
             }
         :return:
         """
@@ -31,7 +31,7 @@ class Render:
             V = o3d.utility.Vector3dVector(vertices.to_numpy())
             F = o3d.utility.Vector3iVector(indices.to_numpy())
             mesh = o3d.geometry.TriangleMesh(V, F)
-            mesh.paint_uniform_color([0.5, 0.5, 0.5])
+            mesh.paint_uniform_color(color)
             mesh.compute_vertex_normals()
             mesh.compute_triangle_normals()
             self.meshes[obj] = mesh
@@ -62,7 +62,7 @@ class Render:
 
         # render and view options
         self.rdr = self.vis.get_render_option()
-        self.rdr.mesh_show_back_face = True
+        # self.rdr.mesh_show_back_face = True
         # rdr.mesh_show_wireframe = True
         self.ctr = self.vis.get_view_control()
         self.ctr.set_lookat([0.0, 0.5, 0.0])
@@ -96,6 +96,7 @@ class Render:
             self.meshes[obj].triangles = o3d.utility.Vector3iVector(objs[obj][1].to_numpy())
             self.meshes[obj].compute_vertex_normals()
             self.meshes[obj].compute_triangle_normals()
+            self.meshes[obj].filter_smooth_laplacian(number_of_iterations=10)
             self.vis.update_geometry(self.meshes[obj])
 
         self.vis.update_renderer()

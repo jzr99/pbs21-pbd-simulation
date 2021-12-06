@@ -109,7 +109,7 @@ class BendingConstraints:
                 self.bend_indices[i][4] = self.calc_angle(p1, p2, p3, p4)
                 self.bend_mask[i][0] = 1
             else:
-                print('invalid number of adjacent triangles ',len(adj))
+                # print('invalid number of adjacent triangles ',len(adj))
                 self.bend_mask[i][0] = 0
 
                 # def build_constrain(self):
