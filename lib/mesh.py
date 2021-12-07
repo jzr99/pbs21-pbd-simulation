@@ -85,11 +85,7 @@ class Mesh:
                     verts = []
                     for item in items[1:]:
                         v_items = item.split('/')
-                        if v_items[1] == '':
-                            v_items[1] = '0'
-                        if v_items[2] == '':
-                            v_items[2] = '0'
-                        verts.append(Vertex(int(v_items[0]), int(v_items[1]), int(v_items[2])))
+                        verts.append(Vertex(int(v_items[0]), 0, 0))
                     if self.reverse_triangle_verts:
                         verts.reverse()
                     if len(verts) == 3:
