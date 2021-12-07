@@ -9,8 +9,8 @@ class CollisionConstraints:
         for mesh in dynamic_meshes:
             num_dynamic_ver.append(mesh.num_vertices)
 
-        self.mesh_index = ti.field(dtype=ti.int32, shape=(sum(num_dynamic_ver)))
-        self.vertice_index = ti.field(dtype=ti.int32, shape=(sum(num_dynamic_ver)))
+        self.mesh_index = ti.field(dtype=ti.int32, shape=(sum(num_dynamic_ver)))  # deprecated
+        self.vertice_index = ti.field(dtype=ti.int32, shape=(sum(num_dynamic_ver)))  # deprecated
 
         cnt = 0
         for mesh_idx, mesh_num in enumerate(num_dynamic_ver):
@@ -23,10 +23,21 @@ class CollisionConstraints:
         self.surface_norm = ti.Vector.field(3, dtype=ti.float32, shape=(sum(num_dynamic_ver)))
         self.entry_point = ti.Vector.field(3, dtype=ti.float32, shape=(sum(num_dynamic_ver)))
 
+        # dynamic collision global data structure
+        self.has_self_constraint = ti.field(dtype=ti.int32, shape=(sum(num_dynamic_ver)))
+        self.self_collision_surface_norm = ti.Vector.field(3, dtype=ti.float32, shape=(sum(num_dynamic_ver)))
+        self.self_collision_entry_point = ti.Vector.field(3, dtype=ti.float32, shape=(sum(num_dynamic_ver)))
+        self.self_other_vertices_idx = ti.Vector.field(3, dtype=ti.int32, shape=(sum(num_dynamic_ver)))
+        self.self_collision_sum = ti.field(dtype=ti.float32, shape=(), needs_grad=True)
+
     @ti.kernel
     def reset(self):
         for i in ti.grouped(self.has_constraint):
             self.has_constraint[i] = 0
+
+            self.has_self_constraint[i] = 0
+
+            self.self_collision_sum[None] = 0
 
             self.surface_norm[i].x = 0
             self.surface_norm[i].y = 0
@@ -36,12 +47,34 @@ class CollisionConstraints:
             self.entry_point[i].y = 0
             self.entry_point[i].z = 0
 
+            self.self_other_vertices_idx[i].x = 0
+            self.self_other_vertices_idx[i].y = 0
+            self.self_other_vertices_idx[i].z = 0
+
+            self.self_collision_surface_norm[i].x = 0
+            self.self_collision_surface_norm[i].y = 0
+            self.self_collision_surface_norm[i].z = 0
+
+            self.self_collision_entry_point[i].x = 0
+            self.self_collision_entry_point[i].y = 0
+            self.self_collision_entry_point[i].z = 0
 
     @ti.func
     def add_constraint(self, global_index, norm, entry_point):
+        if self.has_self_constraint[global_index] == 1:
+            print('warning: constraint should be added only once. ')
         self.has_constraint[global_index] = 1
         self.surface_norm[global_index] = norm
         self.entry_point[global_index] = entry_point
+
+    @ti.func
+    def add_self_constraint(self, global_index, p1, p2, p3, norm, entry_point):
+        self.has_self_constraint[global_index] = 1
+        self.self_collision_surface_norm[global_index] = norm
+        self.self_collision_entry_point[global_index] = entry_point
+        self.self_other_vertices_idx[global_index].x = p1
+        self.self_other_vertices_idx[global_index].y = p2
+        self.self_other_vertices_idx[global_index].z = p3
 
     @ti.func
     def project(self, global_var_idx, p: ti.template()):
@@ -49,10 +82,6 @@ class CollisionConstraints:
         if self.has_constraint[global_var_idx] == 0:
             pass
         else:
-            # get the mesh index and vertice index of the constrained vertices
-            mesh_idx = self.mesh_index[global_var_idx]
-            local_ver_idx = self.vertice_index[global_var_idx]
-
             # apply project
             entry_to_p = p - self.entry_point[global_var_idx]
             surface_norm = self.surface_norm[global_var_idx]
@@ -66,13 +95,11 @@ class CollisionConstraints:
 
     @ti.func
     def calibrate_colliding_vertices(self, global_var_idx: int, v: ti.template()):
-        if self.has_constraint[global_var_idx] == 0:
+        if self.has_constraint[global_var_idx] == 0:  # todo consider self collision ?
             pass
 
         else:
             # get the mesh index and vertice index of the constrained vertices
-            mesh_idx = self.mesh_index[global_var_idx]
-            local_ver_idx = self.vertice_index[global_var_idx]
 
             # apply velocity reflection
             surface_norm = self.surface_norm[global_var_idx]
@@ -134,49 +161,18 @@ def ray_triangle_intersect(ray_origin, ray_direction, v0, v1, v2):
 
         if not inner_angle_check(v0, v1, v2, entry_point):
             return_flag[0] = -1
+        if not inner_angle_check(v0, v2, v1, entry_point):
+            return_flag[0] = -1
         if not inner_angle_check(v1, v0, v2, entry_point):
             return_flag[0] = -1
+        if not inner_angle_check(v1, v2, v0, entry_point):
+            return_flag[0] = -1
         if not inner_angle_check(v2, v0, v1, entry_point):
+            return_flag[0] = -1
+        if not inner_angle_check(v2, v1, v0, entry_point):
             return_flag[0] = -1
 
         if return_flag[0] == 1.0:
             return_flag[0] = float(t)
 
     return return_flag
-
-
-class CollisionConstraints_Wrong:
-
-    def __init__(self, index: int, normal: ti.Vector, entry_point: ti.Vector):
-        """
-        :param index: index of projected point in global data. (e.g. configuration.EstimatedPosition)
-        :param normal: normal position of triangle (normal must in opposite direction against ray-direction)
-        :param entry_point: position of entry point on the triangle
-        """
-        self.index = index
-        self.normal = normal
-        self.entry_point = entry_point
-
-    def project(self, configuration, **kwargs):
-        """
-        :param configuration: global structure to store temporal data (e.g. configuration.estimateposition for un-projected data).
-        """
-        # ----- pre-process -----
-        # todo get current estimate position
-        p = ti.Vector([0, 0, 0])
-        # -----------------------
-        p_to_entry = p - self.entry_point
-        p_to_entry_norm = p_to_entry.normalized()
-
-        # since projection solver run multiple times, this constraint may be solved already.
-        if ti.dot(p_to_entry, self.normal) >= 0:
-            return
-
-        # displacement along the direction of entering point. (Hint: in paper, the direction should be along with normal vector).
-        disp_length = ti.dot(p_to_entry, self.normal)
-        disp = disp_length * p_to_entry_norm
-
-        # ----- post-process -----
-        # todo update position in configuration data
-        # configuration.estimate_position[self.index] += disp
-        # ------------------------

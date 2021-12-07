@@ -18,7 +18,10 @@ def constraint():
     q = field[3]
     p1, p2, p3 = field[0], field[1], field[2]
     # constraint_sum[0] += (q - p1).dot((p2-p1).cross(p3-p1).normalized())
-    constraint_sum_vec[0] = field[0].dot(field[1])
+    if field[0].z == 1:
+        constraint_sum_vec[0] = field[0].dot(field[1])
+    else:
+        constraint_sum_vec[0] = field[0].dot(field[3])
     constraint_sum_vec[1] = field[0].dot(field[2])
 
 init()

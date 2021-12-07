@@ -141,7 +141,7 @@ class Mesh:
         self.vertices.from_numpy(np.array(vertices))
         self.vertices = self.vertices
 
-        self.estimated_vertices = ti.Vector.field(3, ti.float32, self.num_vertices)
+        self.estimated_vertices = ti.Vector.field(3, ti.float32, self.num_vertices, needs_grad=True)
         self.estimated_vertices.from_numpy(np.array(vertices))
 
         # self._normals = ti.Vector.field(3, ti.float32, self.num_face)  # not used
