@@ -18,20 +18,20 @@ class Simulation(object):
         self.gravity = 0.981
         self.wind_speed = 1.0
         self.wind_oscillation = 0
-        self.velocity_damping = 0.999
+        self.velocity_damping = 0.99
         self.stretch_factor = 0.999
-        self.bend_factor = 0.01
+        self.bend_factor = 0.001
         self.collision_threshold = 5e-3
         self.self_collision_threshold = 1e-1
         self.cloth_thickness = 1e-2
-        self.self_col_factor = 0.5
+        self.self_col_factor = 1.0
         self.wireframe = False
         self.render = render
         self._mesh_now = None
         self._static_mesh = None
         self._dynamic_mesh = None
-        # self.self_collision = True if len(self.module.simulated_objects) == 1 else False
-        self.self_collision = False
+        self.self_collision = True if len(self.module.simulated_objects) == 1 else False
+        # self.self_collision = False
         self.collision_constraint = CollisionConstraints(self.module.simulated_objects)
         self.distance_constraint = DistanceConstraintsBuilder(mesh=self.module.simulated_objects[0], stiffness_factor=0.8,
                                                               solver_iterations=self.solver_iterations)
@@ -227,7 +227,7 @@ class Simulation(object):
         self.bend_constrain.project()
 
         # fix the (0, 0) of cloth
-        self._mesh_now.estimated_vertices[0] = self._mesh_now.vertices[0]
+        # self._mesh_now.estimated_vertices[0] = self._mesh_now.vertices[0]
 
     @ti.kernel
     def simulate_external_constraint_project(self, global_offset: int):
@@ -275,7 +275,7 @@ class Simulation(object):
             if constraint >= 0:
                 continue
 
-            # project by gradient
+            # project by gradient - failed
             # q_grad = self._dynamic_mesh.estimated_vertices.grad[dyn_ver_idx]
             # v0_grad = self._dynamic_mesh.estimated_vertices.grad[v0_idx]
             # v1_grad = self._dynamic_mesh.estimated_vertices.grad[v1_idx]
@@ -287,11 +287,34 @@ class Simulation(object):
             # self._dynamic_mesh.estimated_vertices[v1_idx] += -s * v1_grad
             # self._dynamic_mesh.estimated_vertices[v2_idx] += -s * v2_grad
 
-            # project by moving
-            entry_to_p = self._dynamic_mesh.estimated_vertices[dyn_ver_idx] \
-                         - self.collision_constraint.self_collision_entry_point[dyn_ver_idx]
-            self._dynamic_mesh.estimated_vertices[dyn_ver_idx] += entry_to_p.dot(surface_norm) * entry_to_p.normalized()
+            # project by moving - failed
+            # entry_to_p = self._dynamic_mesh.estimated_vertices[dyn_ver_idx] \
+            #              - self.collision_constraint.self_collision_entry_point[dyn_ver_idx]
+            # self._dynamic_mesh.estimated_vertices[dyn_ver_idx] += entry_to_p.dot(surface_norm) * entry_to_p.normalized()
 
+            # standard projection solver
+            n = surface_norm
+            p1 = v1 - v0
+            p2 = v2 - v0
+            q = self._dynamic_mesh.estimated_vertices[dyn_ver_idx] - v0
+            # derivative of p1
+            tmp_p1 = n @ (n.cross(p2).transpose()) + [[0, p2.z, -p2.y], [-p2.z, 0, p2.x], [p2.y, -p2.x, 0]]  # 3 x 3
+            dc_dp1 = (q.transpose() @ tmp_p1).transpose() / p1.cross(p2).norm()  # 3 x 1
+            # derivative of p2
+            tmp_p2 = n @ (n.cross(p1).transpose()) + [[0, p1.z, -p1.y], [-p1.z, 0, p1.x], [p1.y, -p1.x, 0]]  # 3 x 3
+            dc_dp2 = - (q.transpose() @ tmp_p2).transpose() / p1.cross(p2).norm()  # 3 x 1
+            # derivative of q
+            dc_dq = p1.cross(p2).normalized()
+            # derivative of p0
+            dc_dp0 = - dc_dp1 - dc_dp2 - dc_dq
+
+            # projection
+            s = constraint / (dc_dq.norm() ** 2 + dc_dp0.norm() ** 2 + dc_dp1.norm() ** 2 + dc_dp2.norm() ** 2)
+            s = s * (1 - (1 - self.self_col_factor) ** (1 / self.solver_iterations))
+            self._dynamic_mesh.estimated_vertices[v0_idx] += -s * dc_dp0
+            self._dynamic_mesh.estimated_vertices[v1_idx] += -s * dc_dp1
+            self._dynamic_mesh.estimated_vertices[v2_idx] += -s * dc_dp2
+            self._dynamic_mesh.estimated_vertices[dyn_ver_idx] += -s * dc_dq
 
     @ti.kernel
     def simulate_calibration_all(self):
