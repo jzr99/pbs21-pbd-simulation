@@ -24,6 +24,7 @@ class Render:
 
         # mesh dict
         self.meshes = dict()
+        self.colors = dict()
 
         for obj in objs:
             vertices, indices, color = objs[obj]
@@ -35,6 +36,7 @@ class Render:
             mesh.compute_vertex_normals()
             mesh.compute_triangle_normals()
             self.meshes[obj] = mesh
+            self.colors[obj] = color
             self.vis.add_geometry(mesh)
 
         # sphere mesh
@@ -92,14 +94,17 @@ class Render:
         :return:
         """
         for obj in objs:
-            self.meshes[obj].vertices = o3d.utility.Vector3dVector(objs[obj][0].to_numpy())
-            self.meshes[obj].triangles = o3d.utility.Vector3iVector(objs[obj][1].to_numpy())
-            mesh = self.meshes[obj].subdivide_loop(number_of_iterations=2)
+            V = o3d.utility.Vector3dVector(objs[obj][0].to_numpy())
+            F = o3d.utility.Vector3iVector(objs[obj][1].to_numpy())
+            mesh = o3d.geometry.TriangleMesh(V, F)
+            mesh = mesh.subdivide_loop(number_of_iterations=2)
             self.meshes[obj].vertices = mesh.vertices
             self.meshes[obj].triangles = mesh.triangles
             self.meshes[obj].compute_vertex_normals()
             self.meshes[obj].compute_triangle_normals()
-            self.meshes[obj].filter_smooth_laplacian(number_of_iterations=10)
+            self.meshes[obj].paint_uniform_color(self.colors[obj])
+            
+            #self.meshes[obj].filter_smooth_laplacian(number_of_iterations=10)
             
             self.vis.update_geometry(self.meshes[obj])
 
