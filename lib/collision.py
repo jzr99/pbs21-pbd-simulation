@@ -3,7 +3,7 @@ import taichi as ti
 
 @ti.data_oriented
 class CollisionConstraints:
-    def __init__(self, dynamic_meshes):
+    def __init__(self, dynamic_meshes, friction, restitution):
         self.dynamic_meshes = dynamic_meshes
         num_dynamic_ver = []
         for mesh in dynamic_meshes:
@@ -11,6 +11,9 @@ class CollisionConstraints:
 
         self.mesh_index = ti.field(dtype=ti.int32, shape=(sum(num_dynamic_ver)))  # deprecated
         self.vertice_index = ti.field(dtype=ti.int32, shape=(sum(num_dynamic_ver)))  # deprecated
+
+        self.friction = friction
+        self.restitution = restitution
 
         cnt = 0
         for mesh_idx, mesh_num in enumerate(num_dynamic_ver):
@@ -95,10 +98,7 @@ class CollisionConstraints:
 
     @ti.func
     def calibrate_colliding_vertices(self, global_var_idx: int, v: ti.template()):
-        if self.has_constraint[global_var_idx] == 0:  # todo consider self collision ?
-            pass
-
-        else:
+        if self.has_constraint[global_var_idx] == 1:  # todo consider self collision ?
             # get the mesh index and vertice index of the constrained vertices
 
             # apply velocity reflection
@@ -106,6 +106,12 @@ class CollisionConstraints:
             v = v - 2 * v.dot(surface_norm) * surface_norm
 
             # todo if friction and restitution exists
+            v = v.dot(surface_norm) * surface_norm * self.restitution + (v - v.dot(surface_norm) * surface_norm) * (1 - self.friction)
+
+        elif self.has_self_constraint[global_var_idx] == 1:
+            surface_norm = self.self_collision_surface_norm[global_var_idx]
+            # v = v - 1.00 * v.dot(surface_norm) * surface_norm
+
 
 
 @ti.func

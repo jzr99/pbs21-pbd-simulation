@@ -132,12 +132,14 @@ class Mesh:
         triangles_p = [[tri[0].p, tri[1].p, tri[2].p] for tri in triangles]  # self.triangle only saves vertices index, ignore normal and uv
         self.triangle.from_numpy(np.array(triangles_p))
 
+        self.initial_vertices = ti.Vector.field(3, ti.float32, self.num_vertices)
         self.vertices = ti.Vector.field(3, ti.float32, self.num_vertices)
         vertices = np.array(vertices)
         vertices[..., 0] = vertices[..., 0] - np.mean(x)
         vertices[..., 1] = vertices[..., 1] - np.mean(y)
         vertices[..., 2] = vertices[..., 2] - np.mean(z)
         vertices = vertices * self.rescale + np.array(self.translation).reshape(-1, 3)
+        self.initial_vertices.from_numpy(np.array(vertices))
         self.vertices.from_numpy(np.array(vertices))
         self.vertices = self.vertices
 

@@ -65,7 +65,7 @@ class Render:
         self.rdr.mesh_show_back_face = True
         # rdr.mesh_show_wireframe = True
         self.ctr = self.vis.get_view_control()
-        self.ctr.set_lookat([0.0, 0.5, 0.0])
+        self.ctr.set_lookat([1.0, 0.5, 0.0])
         self.ctr.set_up([0.0, 1.0, 0.0])
 
     def reset_sim(self):
@@ -99,8 +99,7 @@ class Render:
             self.meshes[obj].triangles = mesh.triangles
             self.meshes[obj].compute_vertex_normals()
             self.meshes[obj].compute_triangle_normals()
-            self.meshes[obj].filter_smooth_laplacian(number_of_iterations=10)
-            
+
             self.vis.update_geometry(self.meshes[obj])
 
         self.vis.update_renderer()

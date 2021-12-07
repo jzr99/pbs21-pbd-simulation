@@ -18,13 +18,15 @@ class Simulation(object):
         self.gravity = 0.981
         self.wind_speed = 1.0
         self.wind_oscillation = 0
-        self.velocity_damping = 0.99
+        self.velocity_damping = 0.999
         self.stretch_factor = 0.999
         self.bend_factor = 0.001
         self.collision_threshold = 5e-3
         self.self_collision_threshold = 1e-1
         self.cloth_thickness = 1e-2
-        self.self_col_factor = 1.0
+        self.self_col_factor = 5.0
+        self.restitution = 0.99
+        self.friction = 0.02
         self.wireframe = False
         self.render = render
         self._mesh_now = None
@@ -32,7 +34,7 @@ class Simulation(object):
         self._dynamic_mesh = None
         self.self_collision = True if len(self.module.simulated_objects) == 1 else False
         # self.self_collision = False
-        self.collision_constraint = CollisionConstraints(self.module.simulated_objects)
+        self.collision_constraint = CollisionConstraints(self.module.simulated_objects, self.friction, self.restitution)
         self.distance_constraint = DistanceConstraintsBuilder(mesh=self.module.simulated_objects[0], stiffness_factor=0.8,
                                                               solver_iterations=self.solver_iterations)
         self.bend_constrain = BendingConstraints(mesh=self.module.simulated_objects[0], bend_factor=self.bend_factor,
@@ -142,7 +144,7 @@ class Simulation(object):
                 v2 = self._static_mesh.vertices[v2_idx]
                 t = ray_triangle_intersect(ray_origin, ray_direction, v0, v1, v2)
                 # collision detected
-                if t[0] > 0 and t[0] * 0.5 <= ray.norm() + self.collision_threshold:
+                if t[0] > 0 and t[0] <= ray.norm() + self.collision_threshold:
                     # compute surface norm: make sure it is in the reverse direction of ray
                     surface_norm = (v1 - v0).cross(v2 - v0).normalized()
                     if surface_norm.dot(ray_direction) > 0:
@@ -186,6 +188,12 @@ class Simulation(object):
                 # if triangle and target vertice too far, skip
                 if (ray_origin - 1 / 3 * (v0 + v1 + v2)).norm() > self.self_collision_threshold:
                     continue
+                # if vertices and triangle are too close based on initial location, skip
+                v0_init, v1_init, v2_init = self._dynamic_mesh.initial_vertices[v0_idx], \
+                                            self._dynamic_mesh.initial_vertices[v1_idx], \
+                                            self._dynamic_mesh.initial_vertices[v2_idx]
+                if (self._dynamic_mesh.initial_vertices[dyn_ver_idx] - 1 / 3 * (v0_init + v1_init + v2_init)).norm() < self.self_collision_threshold:
+                    continue
 
                 # narrow detection
                 t = ray_triangle_intersect(ray_origin, ray_direction, v0, v1, v2)
@@ -227,7 +235,10 @@ class Simulation(object):
         self.bend_constrain.project()
 
         # fix the (0, 0) of cloth
-        # self._mesh_now.estimated_vertices[0] = self._mesh_now.vertices[0]
+        self._mesh_now.estimated_vertices[406] = self._mesh_now.vertices[406]
+        self._mesh_now.estimated_vertices[431] = self._mesh_now.vertices[431]
+        self._mesh_now.estimated_vertices[499] = self._mesh_now.vertices[499]
+        self._mesh_now.estimated_vertices[524] = self._mesh_now.vertices[524]
 
     @ti.kernel
     def simulate_external_constraint_project(self, global_offset: int):
@@ -310,7 +321,7 @@ class Simulation(object):
 
             # projection
             s = constraint / (dc_dq.norm() ** 2 + dc_dp0.norm() ** 2 + dc_dp1.norm() ** 2 + dc_dp2.norm() ** 2)
-            s = s * (1 - (1 - self.self_col_factor) ** (1 / self.solver_iterations))
+            s *= self.self_col_factor
             self._dynamic_mesh.estimated_vertices[v0_idx] += -s * dc_dp0
             self._dynamic_mesh.estimated_vertices[v1_idx] += -s * dc_dp1
             self._dynamic_mesh.estimated_vertices[v2_idx] += -s * dc_dp2
