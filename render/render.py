@@ -62,7 +62,7 @@ class Render:
 
         # render and view options
         self.rdr = self.vis.get_render_option()
-        # self.rdr.mesh_show_back_face = True
+        self.rdr.mesh_show_back_face = True
         # rdr.mesh_show_wireframe = True
         self.ctr = self.vis.get_view_control()
         self.ctr.set_lookat([0.0, 0.5, 0.0])
