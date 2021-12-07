@@ -62,7 +62,7 @@ class Render:
 
         # render and view options
         self.rdr = self.vis.get_render_option()
-        # self.rdr.mesh_show_back_face = True
+        self.rdr.mesh_show_back_face = True
         # rdr.mesh_show_wireframe = True
         self.ctr = self.vis.get_view_control()
         self.ctr.set_lookat([0.0, 0.5, 0.0])
@@ -94,9 +94,13 @@ class Render:
         for obj in objs:
             self.meshes[obj].vertices = o3d.utility.Vector3dVector(objs[obj][0].to_numpy())
             self.meshes[obj].triangles = o3d.utility.Vector3iVector(objs[obj][1].to_numpy())
+            mesh = self.meshes[obj].subdivide_loop(number_of_iterations=2)
+            self.meshes[obj].vertices = mesh.vertices
+            self.meshes[obj].triangles = mesh.triangles
             self.meshes[obj].compute_vertex_normals()
             self.meshes[obj].compute_triangle_normals()
             self.meshes[obj].filter_smooth_laplacian(number_of_iterations=10)
+            
             self.vis.update_geometry(self.meshes[obj])
 
         self.vis.update_renderer()
