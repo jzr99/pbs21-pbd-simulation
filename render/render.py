@@ -67,8 +67,8 @@ class Render:
         self.rdr.mesh_show_back_face = True
         # rdr.mesh_show_wireframe = True
         self.ctr = self.vis.get_view_control()
-        self.ctr.set_lookat([0.0, 0.5, 0.0])
-        self.ctr.set_up([0.0, 1.0, 0.0])
+        self.ctr.set_lookat([0.2, 0.8, -0.2])
+        # self.ctr.set_up([0.0, 0.0, 0.0])
 
     def reset_sim(self):
         # init()
@@ -97,8 +97,8 @@ class Render:
             V = o3d.utility.Vector3dVector(objs[obj][0].to_numpy())
             F = o3d.utility.Vector3iVector(objs[obj][1].to_numpy())
             mesh = o3d.geometry.TriangleMesh(V, F)
-            if obj.startswith('simulated'):
-                mesh = mesh.subdivide_loop(number_of_iterations=2)
+            # if obj.startswith('simulated'):
+            #     mesh = mesh.subdivide_loop(number_of_iterations=2)
             self.meshes[obj].vertices = mesh.vertices
             self.meshes[obj].triangles = mesh.triangles
             self.meshes[obj].compute_vertex_normals()
