@@ -1,9 +1,11 @@
 import open3d as o3d
+import json
+import time, os
 
 pause = False
 
 class Render:
-    def __init__(self, objs):
+    def __init__(self, objs, saving: bool, saving_folder):
         """
         :param objs: dict()
             {
@@ -19,8 +21,8 @@ class Render:
         # self.pause = False
 
         # set callbacks
-        self.vis.register_key_callback(ord("R"), self.reset_sim)
-        self.vis.register_key_callback(ord(" "), self.pause_sim)  # space
+        #self.vis.register_key_callback(ord("R"), self.reset_sim)
+        #self.vis.register_key_callback(ord(" "), self.pause_sim)  # space
 
         # mesh dict
         self.meshes = dict()
@@ -67,8 +69,28 @@ class Render:
         self.rdr.mesh_show_back_face = True
         # rdr.mesh_show_wireframe = True
         self.ctr = self.vis.get_view_control()
-        self.ctr.set_lookat([0.2, 0.8, -0.2])
+        self.set_ctr_from_json('./render/view_control.json')
+        #self.ctr.set_lookat([0.2, 0.8, -0.2])
         # self.ctr.set_up([0.0, 0.0, 0.0])
+
+        self.saving = saving
+        self.update_times = 0
+        self.saving_interval = 10
+        if self.saving:
+            self.saving_path = "./images/{}/".format(int(time.time())) if saving_folder == None else saving_folder
+            print("Saving images to: {}".format(self.saving_path))
+            if not os.path.exists(self.saving_path):
+                os.makedirs(self.saving_path)
+
+    def set_ctr_from_json(self, file_path):
+        with open(file_path, 'r') as f:
+            data = json.load(f)
+        settings = data['trajectory'][0]
+        self.ctr.set_lookat(settings['lookat'])
+        self.ctr.set_up(settings['up'])
+        self.ctr.set_front(settings['front'])
+        self.ctr.set_zoom(settings['zoom'])
+        self.ctr.change_field_of_view((settings['field_of_view'] - 60 ) / 5)
 
     def reset_sim(self):
         # init()
@@ -93,12 +115,14 @@ class Render:
             }
         :return:
         """
+        self.ctr.rotate(0.5, 0)
+
         for obj in objs:
             V = o3d.utility.Vector3dVector(objs[obj][0].to_numpy())
             F = o3d.utility.Vector3iVector(objs[obj][1].to_numpy())
             mesh = o3d.geometry.TriangleMesh(V, F)
-            # if obj.startswith('simulated'):
-            #     mesh = mesh.subdivide_loop(number_of_iterations=2)
+            if obj.startswith('simulated'):
+                mesh = mesh.subdivide_loop(number_of_iterations=2)
             self.meshes[obj].vertices = mesh.vertices
             self.meshes[obj].triangles = mesh.triangles
             self.meshes[obj].compute_vertex_normals()
@@ -110,4 +134,7 @@ class Render:
             self.vis.update_geometry(self.meshes[obj])
 
         self.vis.update_renderer()
+        if self.saving and self.update_times % self.saving_interval == 0:
+            self.vis.capture_screen_image("{}{:05d}.png".format(self.saving_path, self.update_times//self.saving_interval), False)
+        self.update_times += 1
 

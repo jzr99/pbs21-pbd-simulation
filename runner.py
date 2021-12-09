@@ -7,7 +7,7 @@ from lib.simulator import Simulation
 
 
 if __name__ == '__main__':
-    ti.init()
+    ti.init(ti.cuda)
 
     # X, Y, Z 对应关系
     # X，Z：平面坐标，X控制水平方向，从左到右依次递增；Z控制竖直方向，从后到前依次递增。（原点在初始视角平面的左上角）
@@ -28,7 +28,10 @@ if __name__ == '__main__':
     render = Render({
         # 'static_0': mesh_sphere.export_for_render(),
         'simulated_0': mesh_cloth.export_for_render()
-    })
+        },
+        saving = True,
+        saving_folder = None,
+    )
     sim = Simulation(module, render)
 
     sim.run()
