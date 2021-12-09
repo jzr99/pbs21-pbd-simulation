@@ -16,15 +16,15 @@ class Simulation(object):
         # self.iteration_field = ti.Vector.field(1, float, self.solver_iterations)
         self.time_step = 1e-3
         self.gravity = 0.981
-        self.wind_speed = 1.0
+        self.wind_speed = 0.3
         self.wind_oscillation = 0
         self.velocity_damping = 0.999
         self.stretch_factor = 0.999
         self.bend_factor = 0.001
         self.collision_threshold = 5e-3
         self.self_collision_threshold = 1e-1
-        self.cloth_thickness = 1e-2
-        self.self_col_factor = 5.0
+        self.cloth_thickness = 2e-2
+        self.self_col_factor = 1.5
         self.restitution = 0.99
         self.friction = 0.02
         self.wireframe = False
@@ -48,7 +48,7 @@ class Simulation(object):
         count = 0
         while True:
             count += 1
-            self.wind_oscillation += 0.005
+            self.wind_oscillation += 0.01
             if not self.render.get_pause():
                 self.simulate()
             self.rendering()
@@ -111,7 +111,7 @@ class Simulation(object):
         if self._mesh_now.gravity_affected:
             self._mesh_now.apply_impulse(2.0 * self.time_step * ti.Vector([0.0, -self.gravity, 0.0]))
         if self._mesh_now.wind_affected:
-            self._mesh_now.apply_impulse(2.0 * self.time_step * ti.Vector([self.wind_speed + np.sin(self.wind_oscillation), 0.0, 0.0]))
+            self._mesh_now.apply_impulse(2.0 * self.time_step * ti.Vector([0.0, 0.0, self.wind_speed + self.wind_speed * np.sin(self.wind_oscillation)]))
 
         for i in ti.grouped(self._mesh_now.velocities):
             self._mesh_now.estimated_vertices[i] = self._mesh_now.vertices[i] + self.time_step * self._mesh_now.velocities[i]
