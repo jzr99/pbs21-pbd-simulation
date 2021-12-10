@@ -13,20 +13,20 @@ from lib import utils
 class Simulation(object):
 
     def __init__(self, module: Module, render, **kwargs):
-
+        self.total_step = 100
         self.module = module
         self.solver_iterations = 4
         # self.iteration_field = ti.Vector.field(1, float, self.solver_iterations)
-        self.time_step = 1e-3
+        self.time_step = 5e-3
         self.gravity = 0.981
         # self.wind_speed = 1.0
         self.wind_oscillation = 0
         self.velocity_damping = 0.99
         self.stretch_factor = 0.999
         self.bend_factor = 0.001
-        self.collision_threshold = 5e-3
+        self.collision_threshold = 5e-2
         self.self_collision_threshold = 1e-1
-        self.cloth_thickness = 1e-2
+        self.cloth_thickness = 1e-1
         self.self_col_factor = 1.0
         self.wireframe = False
         self.render = render
@@ -47,7 +47,7 @@ class Simulation(object):
         self.init_point = self.module.simulated_objects[0].vertices[0]
         self.loss = ti.field(dtype=ti.f32, needs_grad=True)
         self.wind_speed = ti.Vector.field(n=3, dtype=ti.f32, needs_grad=True)
-        self.lr = 10
+        self.lr = 40
         ti.root.place(self.loss)
         ti.root.place(self.wind_speed)
         ti.root.lazy_grad()
@@ -117,8 +117,8 @@ class Simulation(object):
     def run(self):
         # with ti.Tape(self.loss):
         count = 0
-        # while count <= 100:
-        while True:
+        while count <= self.total_step:
+        # while True:
             count += 1
             self.wind_oscillation += 0.005
             # if not self.render.get_pause():
@@ -140,7 +140,7 @@ class Simulation(object):
             # print(count)
             self.rendering()
             if not self.render.vis.poll_events():
-                break
+                exit(0)
             self.render.vis.update_renderer()
             # self.compute_loss()
         # self.wind_speed[None][0] -= self.wind_speed.grad[None][0] * self.lr
@@ -218,7 +218,8 @@ class Simulation(object):
                 self._dynamic_mesh = self.module.simulated_objects[0]
                 self.simulate_self_constraint_project()
             # project by internal constraint
-            self.simulate_internal_constraint_project()
+            self.simulate_distance_project()
+            self.simulate_bend_project()
         #
         #     # with ti.Tape(self.loss):
         #     #     self.simulate_internal_constraint_project()
@@ -286,7 +287,7 @@ class Simulation(object):
             #     self._dynamic_mesh = self.module.simulated_objects[0]
             #     self.simulate_self_constraint_project()
             # project by internal constraint
-            self.simulate_internal_constraint_project()
+            self.simulate_distance_project()
         #
         #     # with ti.Tape(self.loss):
         #     #     self.simulate_internal_constraint_project()
@@ -448,9 +449,17 @@ class Simulation(object):
                 self.collision_constraint.add_self_constraint(dyn_ver_idx, min_v0_idx, min_v1_idx, min_v2_idx, surface_norm, entry_point)
 
     @ti.kernel
-    def simulate_internal_constraint_project(self):
+    def simulate_distance_project(self):
         self.distance_constraint.project()
         # self.bend_constrain.project()
+
+        # fix the (0, 0) of cloth
+        # self._mesh_now.estimated_vertices[0] = self._mesh_now.vertices[0]
+
+    @ti.kernel
+    def simulate_bend_project(self):
+        # self.distance_constraint.project()
+        self.bend_constrain.project()
 
         # fix the (0, 0) of cloth
         # self._mesh_now.estimated_vertices[0] = self._mesh_now.vertices[0]
