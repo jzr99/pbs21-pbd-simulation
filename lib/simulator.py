@@ -52,6 +52,9 @@ class Simulation(object):
             if not self.render.get_pause():
                 self.simulate()
             self.rendering()
+            if count == 10000:
+                # file format p1_index p2_index p3_index p4_index angle
+                self.bend_constrain.write_angle_csv('./bending_angle.csv')
             if not self.render.vis.poll_events():
                 break
             self.render.vis.update_renderer()

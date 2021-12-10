@@ -112,6 +112,36 @@ class BendingConstraints:
                 # print('invalid number of adjacent triangles ',len(adj))
                 self.bend_mask[i][0] = 0
 
+    # file format p1_index p2_index p3_index p4_index angle
+    @ti.pyfunc
+    def write_angle_csv(self, file_name='./bending_angle.csv'):
+        import csv
+        EPSILON = 1e-8
+        with open(file_name, mode='w') as file:
+            writer = csv.writer(file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+            # writer.writerow(['John Smith', 'Accounting', 'November'])
+            # writer.writerow(['Erica Meyers', 'IT', 'March'])
+            for i in ti.ndrange(*self.bend_mask.shape):
+                # TODO filter zero constrain
+                if self.bend_mask[i][0] == 1:
+                    # print('bend_indices', self.bend_indices[i])
+                    p1_index, p2_index, p3_index, p4_index, constrain_angle = self.bend_indices[i]
+                    # p1_index, p2_index, p3_index, p4_index = flat2index(p1_index), flat2index(p2_index), flat2index(p3_index), flat2index(p4_index)
+                    p1, p2, p3, p4 = self.mesh.estimated_vertices[int(p1_index)], self.mesh.estimated_vertices[int(p2_index)], \
+                                     self.mesh.estimated_vertices[int(p3_index)], self.mesh.estimated_vertices[int(p4_index)]
+                    # import pdb;pdb.set_trace()
+                    p2_new = p2 - p1
+                    p3_new = p3 - p1
+                    p4_new = p4 - p1
+                    p2Xp3 = p2_new.cross(p3_new)
+                    p2Xp4 = p2_new.cross(p4_new)
+                    n1 = p2Xp3 / (p2Xp3.norm() + EPSILON)
+                    n2 = p2Xp4 / (p2Xp4.norm() + EPSILON)
+                    d = n1.dot(n2)
+                    angle = ti.acos(d)
+                    writer.writerow([int(p1_index), int(p2_index), int(p3_index), int(p4_index), float(angle)])
+
+
                 # def build_constrain(self):
     #     for i in range(num_triangles):
     #         if i % 2 == 1:
@@ -192,7 +222,7 @@ class BendingConstraints:
                 # print('bend_indices', self.bend_indices[i])
                 p1_index, p2_index, p3_index, p4_index, constrain_angle = self.bend_indices[i]
                 # p1_index, p2_index, p3_index, p4_index = flat2index(p1_index), flat2index(p2_index), flat2index(p3_index), flat2index(p4_index)
-                p1, p2, p3, p4 = self.mesh.estimated_vertices[p1_index], self.mesh.estimated_vertices[p2_index], self.mesh.estimated_vertices[p3_index], self.mesh.estimated_vertices[p4_index]
+                p1, p2, p3, p4 = self.mesh.estimated_vertices[int(p1_index)], self.mesh.estimated_vertices[int(p2_index)], self.mesh.estimated_vertices[int(p3_index)], self.mesh.estimated_vertices[int(p4_index)]
                 # print("p1_old", p1)
                 # print("p2_old", p2)
                 # print("p3_old", p3)
