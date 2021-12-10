@@ -133,6 +133,7 @@ class Mesh:
         self.triangle.from_numpy(np.array(triangles_p))
 
         self.vertices = ti.Vector.field(3, ti.float32, self.num_vertices)
+        self.vertices_copy = ti.Vector.field(3, ti.float32, self.num_vertices, needs_grad=False)
         vertices = np.array(vertices)
         vertices[..., 0] = vertices[..., 0] - np.mean(x)
         vertices[..., 1] = vertices[..., 1] - np.mean(y)
@@ -154,6 +155,7 @@ class Mesh:
         # self.generate_surface_normals()
 
         self.indices = ti.Vector.field(3, ti.f32, (self.num_face))
+        self.indices_copy = ti.Vector.field(3, ti.f32, (self.num_face), needs_grad=False)
         self.generate_triangle_indices()
 
     def generate_surface_normals(self):
@@ -191,7 +193,7 @@ class Mesh:
     @ti.func
     def apply_impulse(self, force):
         for i in ti.ndrange(*self.velocities.shape):
-            self.velocities[i] += force
+            self.velocities[i] = force + self.velocities[i]
 
     @ti.func
     def translate(self, translate):
@@ -201,5 +203,8 @@ class Mesh:
     def intersect(self):
         raise NotImplementedError()
 
+    @ti.pyfunc
     def export_for_render(self):
+        # utils.copy(self.vertices, self.vertices_copy)
+        # utils.copy(self.indices, self.indices_copy)
         return self.vertices, self.indices, self.color

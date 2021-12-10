@@ -26,10 +26,11 @@ def constraint():
 
 init()
 
-constraint_sum_vec.grad[0] = 1
-constraint_sum_vec.grad[1] = 1
-constraint()
-constraint.grad()
+# constraint_sum_vec.grad[0] = 1
+# constraint_sum_vec.grad[1] = 1
+with ti.Tape(constraint_sum_vec[None]):
+    constraint()
+# constraint.grad()
 
 print(field.grad[0])
 print(field.grad[1])

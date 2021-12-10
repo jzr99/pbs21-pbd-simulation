@@ -87,8 +87,8 @@ class DistanceConstraintsBuilder:
     #             self.edge_indices[flat_index + k][2] = L * float(d).norm()
     @ti.func
     def project(self):
-        EPSILON = 1e-8
         for i in ti.grouped(self.edge_indices):
+            EPSILON = 1e-8
             p1_index, p2_index, constrain_length = self.edge_indices[i]
             # p1_index, p2_index = flat2index(p1_index), flat2index(p2_index)
             p1, p2 = self.mesh.estimated_vertices[int(p1_index)], self.mesh.estimated_vertices[int(p2_index)]

@@ -10,7 +10,7 @@ class BoundingBox:
         self.z_min = ti.field(ti.f32, ())
         self.z_max = ti.field(ti.f32, ())
 
-    @ti.func
+    @ti.pyfunc
     def intersect(self, ray_origin, ray_direction):
         # check if from the ray_origin, will the line in the ray_direction intersect with the box
         xn = (self.x_min[None] - ray_origin[0]) / ray_direction[0]
@@ -31,7 +31,7 @@ class BoundingBox:
 
         return xy_overlap and xz_overlap and yz_overlap
 
-    @ti.pyfunc
+    # @ti.pyfunc
     def set_infinity(self):
         self.x_min[None] = float('inf')
         self.x_max[None] = -float('inf')
@@ -40,7 +40,7 @@ class BoundingBox:
         self.z_min[None] = float('inf')
         self.z_max[None] = -float('inf')
 
-    @ti.pyfunc
+    # @ti.pyfunc
     def update_bounding_box(self, vertices):
         # clear
         self.set_infinity()
