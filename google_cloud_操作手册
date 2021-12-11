@@ -1,0 +1,8 @@
+1. 严格按照open3d要求安装virtual env
+2. 在py3env上更新cmake至最新版本
+2.1 系统中缺少部分文件，后期构建可能不顺利：sudo apt-get install libglfw3-dev libgl1-mesa-dev libglu1-mesa-dev
+3. 编译和运行文件
+
+http://www.open3d.org/docs/0.8.0/tutorial/Advanced/headless_rendering.html#install-virtualenv
+
+https://stackoverflow.com/questions/49859457/how-to-reinstall-the-latest-cmake-version#:~:text=install%20python%2Dpip-,pip%20install%20cmake%20%2D%2Dupgrade,-Share

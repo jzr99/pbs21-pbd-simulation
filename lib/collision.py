@@ -70,7 +70,7 @@ class CollisionConstraints:
         self.surface_norm[global_index] = norm
         self.entry_point[global_index] = entry_point
 
-    @ti.func
+    @ti.pyfunc
     def add_self_constraint(self, global_index, p1, p2, p3, norm, entry_point):
         self.has_self_constraint[global_index] = 1
         self.self_collision_surface_norm[global_index] = norm
@@ -79,7 +79,7 @@ class CollisionConstraints:
         self.self_other_vertices_idx[global_index].y = p2
         self.self_other_vertices_idx[global_index].z = p3
 
-    @ti.func
+    @ti.pyfunc
     def project(self, global_var_idx, p: ti.template()):
 
         if self.has_constraint[global_var_idx] == 0:
@@ -96,7 +96,7 @@ class CollisionConstraints:
                 p = p + disp_length * entry_to_p.normalized()
 
 
-    @ti.func
+    @ti.pyfunc
     def calibrate_colliding_vertices(self, global_var_idx: int, v: ti.template()):
         if self.has_constraint[global_var_idx] == 1:  # todo consider self collision ?
             # get the mesh index and vertice index of the constrained vertices

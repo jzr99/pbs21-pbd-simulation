@@ -213,10 +213,11 @@ class BendingConstraints:
     #     # for c in bend_indices:
     #     #     print(bend_indices[c])
 
-    @ti.func
+    @ti.pyfunc
     def project(self):
         EPSILON = 1e-8
-        for i in ti.grouped(self.bend_mask):
+        # for i in ti.grouped(self.bend_mask):
+        for i in ti.ndrange(self.bend_mask.shape[0]):
             # TODO filter zero constrain
             if self.bend_mask[i][0] == 1:
                 # print('bend_indices', self.bend_indices[i])

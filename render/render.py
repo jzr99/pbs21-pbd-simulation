@@ -139,6 +139,6 @@ class Render:
 
         self.vis.update_renderer()
         if self.saving and self.update_times % self.saving_interval == 0:
-            self.vis.capture_screen_image("{}{:07d}.png".format(self.saving_path, self.update_times), False)
+            self.vis.capture_screen_image("{}{:07d}.png".format(self.saving_path, self.update_times // self.saving_interval), False)
         self.update_times += 1
 
