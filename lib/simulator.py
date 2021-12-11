@@ -93,7 +93,8 @@ class Simulation(object):
         # ----- calibration (velocity and position update), friction apply -----
         self.simulate_calibration_all()
         self.simulate_calibration_collision()
-        # -----------------------------------------------------------------------
+        self.simulate_velocity_damping()
+    # -----------------------------------------------------------------------
 
     @ti.kernel
     def simulate_estimate(self):
@@ -367,7 +368,7 @@ class Simulation(object):
         # update velocities and positions
         for i in ti.grouped(self._mesh_now.velocities):
             self._mesh_now.velocities[i] = (self._mesh_now.estimated_vertices[i] - self._mesh_now.vertices[i]) / self.time_step
-            self._mesh_now.velocities[i] = self._mesh_now.velocities[i] * self.velocity_damping
+            # self._mesh_now.velocities[i] = self._mesh_now.velocities[i] * self.velocity_damping
             self._mesh_now.vertices[i] = self._mesh_now.estimated_vertices[i]
 
     @ti.kernel
@@ -376,6 +377,11 @@ class Simulation(object):
             global_index = dyn_ver_idx
             v = self._dynamic_mesh.velocities[dyn_ver_idx]
             self.collision_constraint.calibrate_colliding_vertices(global_index, v)
+
+    @ti.kernel
+    def simulate_velocity_damping(self):
+        for i in ti.grouped(self._mesh_now.velocities):
+            self._mesh_now.velocities[i] = self._mesh_now.velocities[i] * self.velocity_damping
 
     def rendering(self):
         update_dict = dict()
