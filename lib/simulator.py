@@ -10,8 +10,9 @@ from lib.collision import CollisionConstraints, ray_triangle_intersect
 @ti.data_oriented
 class Simulation(object):
 
-    def __init__(self, module: Module, render):
+    def __init__(self, module: Module, render, max_run_step=10000):
         self.module = module
+        self.max_run_step = max_run_step
         self.solver_iterations = 4
         # self.iteration_field = ti.Vector.field(1, float, self.solver_iterations)
         self.time_step = 1e-3
@@ -21,19 +22,20 @@ class Simulation(object):
         self.velocity_damping = 0.999
         self.stretch_factor = 0.999
         self.bend_factor = 0.001
-        self.collision_threshold = 5e-3
+        self.collision_threshold = 1e-2
         self.self_collision_threshold = 1e-1
         self.cloth_thickness = 2e-2
-        self.self_col_factor = 1.5
-        self.restitution = 0.99
-        self.friction = 0.02
+        self.self_col_factor = 1.0
+        self.restitution = 0.2
+        self.friction = 0.1
         self.wireframe = False
         self.render = render
         self._mesh_now = None
         self._static_mesh = None
         self._dynamic_mesh = None
-        self.self_collision = True if len(self.module.simulated_objects) == 1 else False
-        # self.self_collision = False
+        self._ground_mesh = None
+        # self.self_collision = True if len(self.module.simulated_objects) == 1 else False
+        self.self_collision = False
         self.collision_constraint = CollisionConstraints(self.module.simulated_objects, self.friction, self.restitution)
         self.distance_constraint = DistanceConstraintsBuilder(mesh=self.module.simulated_objects[0], stiffness_factor=0.8,
                                                               solver_iterations=self.solver_iterations)
@@ -49,7 +51,7 @@ class Simulation(object):
         while True:
             count += 1
             self.wind_oscillation += 0.01
-            if not self.render.get_pause():
+            if not self.render.get_pause() and count < self.max_run_step:
                 self.simulate()
             self.rendering()
             if count == 10000:
@@ -60,53 +62,37 @@ class Simulation(object):
             self.render.vis.update_renderer()
 
     def simulate(self):
+        self._mesh_now = self.module.simulated_objects[0]
+        self._dynamic_mesh = self.module.simulated_objects[0]
+        self._static_mesh = self.module.static_objects[0]
+        self._ground_mesh = self.module.static_objects[1]
         # velocity and position update under external forces
-        for mesh in self.module.simulated_objects:
-            self._mesh_now = mesh
-            self.simulate_estimate()
+        self.simulate_estimate()
 
         # ----- collision constraints built -----
-        global_offset = 0
         self.collision_constraint.reset()
         # static collision
-        for dyn_idx, dynamic_mesh in enumerate(self.module.simulated_objects):
-            global_offset += dynamic_mesh.num_vertices
-            for sta_idx, static_mesh in enumerate(self.module.static_objects):
-                self._dynamic_mesh = dynamic_mesh
-                self._static_mesh = static_mesh
-                self.build_collision_constraints(global_offset)
+        self.build_collision_constraints()
         # dynamic self collision
         if self.self_collision:
-            self._dynamic_mesh = self.module.simulated_objects[0]
+            # self._dynamic_mesh = self.module.simulated_objects[0]
             self.build_self_collision_constraint()
         # ----------------------------------------
 
         # ------------- projection ---------------
         for _ in range(self.solver_iterations):
-            global_offset = 0
             # project by external/collision constraint
-            for dyn_idx, dynamic_mesh in enumerate(self.module.simulated_objects):
-                global_offset += dynamic_mesh.num_vertices
-                self._dynamic_mesh = dynamic_mesh
-                self.simulate_external_constraint_project(global_offset)
+            self.simulate_external_constraint_project()
             # project by internal self collision constraint
             if self.self_collision:
-                self._dynamic_mesh = self.module.simulated_objects[0]
                 self.simulate_self_constraint_project()
             # project by internal constraint
             self.simulate_internal_constraint_project()
         # ----------------------------------------
 
         # ----- calibration (velocity and position update), friction apply -----
-        for mesh in self.module.simulated_objects:
-            self._mesh_now = mesh
-            self.simulate_calibration_all()
-
-        global_offset = 0
-        for dyn_idx, dynamic_mesh in enumerate(self.module.simulated_objects):
-            global_offset += dynamic_mesh.num_vertices
-            self._dynamic_mesh = dynamic_mesh
-            self.simulate_calibration_collision(global_offset)
+        self.simulate_calibration_all()
+        self.simulate_calibration_collision()
         # -----------------------------------------------------------------------
 
     @ti.kernel
@@ -120,11 +106,12 @@ class Simulation(object):
             self._mesh_now.estimated_vertices[i] = self._mesh_now.vertices[i] + self.time_step * self._mesh_now.velocities[i]
 
     @ti.kernel
-    def build_collision_constraints(self, global_offset: int):
+    def build_collision_constraints(self):
         """
         Build static collision constraints given dynamic mesh and static mesh.
         :param global_offset: index start of the dynamic mesh vertices in the CollisionConstraintsField.
         """
+        # for static object
         # update the bounding box of static object for broad collision detection
         self._static_mesh.bounding_box.update_bounding_box(self._static_mesh.vertices)
 
@@ -147,7 +134,7 @@ class Simulation(object):
                 v2 = self._static_mesh.vertices[v2_idx]
                 t = ray_triangle_intersect(ray_origin, ray_direction, v0, v1, v2)
                 # collision detected
-                if t[0] > 0 and t[0] <= ray.norm() + self.collision_threshold:
+                if t[0] > 0 and t[0] * 0.5 <= ray.norm() + self.collision_threshold:
                     # compute surface norm: make sure it is in the reverse direction of ray
                     surface_norm = (v1 - v0).cross(v2 - v0).normalized()
                     if surface_norm.dot(ray_direction) > 0:
@@ -167,7 +154,52 @@ class Simulation(object):
                 if surface_norm.dot(ray_direction) > 0:
                     surface_norm = - surface_norm
                 entry_point = ray_origin + (min_t - self.collision_threshold) * ray_direction
-                self.collision_constraint.add_constraint(global_offset + dyn_ver_idx, surface_norm, entry_point)
+                self.collision_constraint.add_constraint(dyn_ver_idx, surface_norm, entry_point)
+
+        # for ground plane
+        # update the bounding box of static object for broad collision detection
+        self._ground_mesh.bounding_box.update_bounding_box(self._ground_mesh.vertices)
+
+        for dyn_ver_idx in ti.grouped(self._dynamic_mesh.estimated_vertices):
+            ray = (self._dynamic_mesh.estimated_vertices[dyn_ver_idx] - self._dynamic_mesh.vertices[dyn_ver_idx])  # todo
+            ray_origin = self._dynamic_mesh.vertices[dyn_ver_idx]
+            ray_direction = ray.normalized()
+
+            # broad collision detection
+            if not self._ground_mesh.bounding_box.intersect(ray_origin, ray_direction):
+                continue
+
+            # narrow collision detection
+            min_t = float('inf')
+            min_idx = 0
+            for static_triangle_idx in range(self._ground_mesh.triangle.shape[0]):
+                v0_idx, v1_idx, v2_idx = self._ground_mesh.triangle[static_triangle_idx]
+                v0 = self._ground_mesh.vertices[v0_idx]
+                v1 = self._ground_mesh.vertices[v1_idx]
+                v2 = self._ground_mesh.vertices[v2_idx]
+                t = ray_triangle_intersect(ray_origin, ray_direction, v0, v1, v2)
+                # collision detected
+                if t[0] > 0 and t[0] * 0.5 <= ray.norm() + self.collision_threshold:
+                    # compute surface norm: make sure it is in the reverse direction of ray
+                    surface_norm = (v1 - v0).cross(v2 - v0).normalized()
+                    if surface_norm.dot(ray_direction) > 0:
+                        surface_norm = - surface_norm
+                    entry_point = ray_origin + (t[0] - self.collision_threshold) * ray_direction
+                    # only build collision constraint with the closest triangle
+                    if t[0] < min_t:
+                        min_t = t[0]
+                        min_idx = static_triangle_idx
+
+            if min_t < float('inf'):
+                v0_idx, v1_idx, v2_idx = self._ground_mesh.triangle[min_idx]
+                v0 = self._ground_mesh.vertices[v0_idx]
+                v1 = self._ground_mesh.vertices[v1_idx]
+                v2 = self._ground_mesh.vertices[v2_idx]
+                surface_norm = (v1 - v0).cross(v2 - v0).normalized()
+                if surface_norm.dot(ray_direction) > 0:
+                    surface_norm = - surface_norm
+                entry_point = ray_origin + (min_t - self.collision_threshold) * ray_direction
+                self.collision_constraint.add_constraint(dyn_ver_idx, surface_norm, entry_point)
 
     @ti.kernel
     def build_self_collision_constraint(self):
@@ -238,15 +270,15 @@ class Simulation(object):
         self.bend_constrain.project()
 
         # fix the (0, 0) of cloth
-        self._mesh_now.estimated_vertices[406] = self._mesh_now.vertices[406]
-        self._mesh_now.estimated_vertices[431] = self._mesh_now.vertices[431]
-        self._mesh_now.estimated_vertices[499] = self._mesh_now.vertices[499]
-        self._mesh_now.estimated_vertices[524] = self._mesh_now.vertices[524]
+        # self._mesh_now.estimated_vertices[406] = self._mesh_now.vertices[406]
+        # self._mesh_now.estimated_vertices[431] = self._mesh_now.vertices[431]
+        # self._mesh_now.estimated_vertices[499] = self._mesh_now.vertices[499]
+        # self._mesh_now.estimated_vertices[524] = self._mesh_now.vertices[524]
 
     @ti.kernel
-    def simulate_external_constraint_project(self, global_offset: int):
+    def simulate_external_constraint_project(self):
         for dyn_ver_idx in ti.grouped(self._dynamic_mesh.estimated_vertices):
-            global_index = global_offset + dyn_ver_idx
+            global_index = dyn_ver_idx
             self.collision_constraint.project(global_index, self._dynamic_mesh.estimated_vertices[dyn_ver_idx])
 
     def simulate_self_constraint_project(self):
@@ -339,9 +371,9 @@ class Simulation(object):
             self._mesh_now.vertices[i] = self._mesh_now.estimated_vertices[i]
 
     @ti.kernel
-    def simulate_calibration_collision(self, global_offset: int):
+    def simulate_calibration_collision(self):
         for dyn_ver_idx in ti.grouped(self._dynamic_mesh.estimated_vertices):
-            global_index = global_offset + dyn_ver_idx
+            global_index = dyn_ver_idx
             v = self._dynamic_mesh.velocities[dyn_ver_idx]
             self.collision_constraint.calibrate_colliding_vertices(global_index, v)
 

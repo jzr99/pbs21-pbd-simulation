@@ -52,7 +52,7 @@ def init():
 
     for i, j in ti.ndrange(N, N):
         x[i, j] = ti.Vector(
-            [(i + 0.5) * L - 0.5 * W, (j / 2 + 0.5) * L / ti.sqrt(2) + 1.0, j * L / ti.sqrt(2) - 0.4 * W]
+            [(i + 0.5) * L - 0.5 * W, (j / 1.3 + 0.5) * L / ti.sqrt(2) + 1.0, j * L / ti.sqrt(2) - 0.4 * W]
         )
 
         if i < N - 1 and j < N - 1:
@@ -164,6 +164,35 @@ sphere.paint_uniform_color([1.0, 0.4, 0.2])
 sphere.compute_vertex_normals()
 vis.add_geometry(sphere)
 
+# ground plane mesh
+def create_ground_plane():
+    N = 16
+    vertices = np.zeros((N * N, 3))
+    indices = np.zeros(((N-1) * (N-1) * 2, 3))
+    for i in range(N):
+        for j in range(N):
+            vertices[i * N + j] = np.array([(i / (N-1) - 0.5) * 2, 0.0, (j / (N-1) - 0.5) * 2])  # [-1, 1]; [0]; [-1, 1]
+
+            if i < N - 1 and j < N - 1:
+                tri_id = ((i * (N - 1)) + j) * 2
+                indices[tri_id][0] = i * N + j
+                indices[tri_id][1] = (i + 1) * N + j
+                indices[tri_id][2] = i * N + (j + 1)
+
+                tri_id += 1
+                indices[tri_id][0] = (i + 1) * N + j + 1
+                indices[tri_id][1] = i * N + (j + 1)
+                indices[tri_id][2] = (i + 1) * N + j
+
+    return vertices, indices
+
+ground_vertice, ground_indices = create_ground_plane()
+mesh_ground = o3d.geometry.TriangleMesh(o3d.utility.Vector3dVector(ground_vertice), o3d.utility.Vector3iVector(ground_indices))
+mesh_ground.paint_uniform_color([0.8, 0.8, 0.8])
+mesh_ground.compute_vertex_normals()
+mesh_ground.compute_triangle_normals()
+vis.add_geometry(mesh_ground)
+
 # plane mesh
 points = (
         [[i/10, 0, -1] for i in range(-10, 11)]
@@ -205,8 +234,11 @@ while True:
     mesh.compute_triangle_normals()
     sphere.compute_vertex_normals()
     sphere.compute_triangle_normals()
-    o3d.io.write_triangle_mesh('obj/cloth_large.obj', mesh=mesh)
-    o3d.io.write_triangle_mesh('obj/sphere_large.obj', mesh=sphere)
+    mesh_ground.compute_vertex_normals()
+    mesh_ground.compute_triangle_normals()
+    o3d.io.write_triangle_mesh('obj/cloth_large_new.obj', mesh=mesh)
+    o3d.io.write_triangle_mesh('obj/sphere_large_new.obj', mesh=sphere)
+    o3d.io.write_triangle_mesh('obj/ground.obj', mesh=mesh_ground)
     break
 
     if not vis.poll_events():
