@@ -1,5 +1,5 @@
 import taichi as ti
-
+from warnings import warn
 
 @ti.data_oriented
 class CollisionConstraints:
@@ -92,7 +92,7 @@ class CollisionConstraints:
             if entry_to_p.dot(surface_norm) >= 0:
                 pass
             else:
-                disp_length = -entry_to_p.norm()   # todo how much offset do we need push back ?
+                disp_length = entry_to_p.dot(surface_norm)   # todo how much offset do we need push back ?
                 p = p + disp_length * entry_to_p.normalized()
 
 

@@ -5,7 +5,7 @@ import time, os
 pause = False
 
 class Render:
-    def __init__(self, objs, saving: bool, saving_folder):
+    def __init__(self, objs, saving: bool, saving_folder, subdiv=True, subdiv_time=2, ctr_rotate=0.0, save_step=1):
         """
         :param objs: dict()
             {
@@ -13,6 +13,7 @@ class Render:
             }
         :return:
         """
+
         # init and setup gui
         self.vis = o3d.visualization.VisualizerWithKeyCallback()
         self.vis.create_window()
@@ -75,7 +76,10 @@ class Render:
 
         self.saving = saving
         self.update_times = 0
-        self.saving_interval = 10
+        self.saving_interval = save_step
+        self.subdiv = subdiv
+        self.subdiv_time = subdiv_time
+        self.ctr_rotate = ctr_rotate
         if self.saving:
             self.saving_path = "./images/{}/".format(int(time.time())) if saving_folder == None else saving_folder
             print("Saving images to: {}".format(self.saving_path))
@@ -115,14 +119,14 @@ class Render:
             }
         :return:
         """
-        self.ctr.rotate(0.5, 0)
+        self.ctr.rotate(self.ctr_rotate, 0)
 
         for obj in objs:
             V = o3d.utility.Vector3dVector(objs[obj][0].to_numpy())
             F = o3d.utility.Vector3iVector(objs[obj][1].to_numpy())
             mesh = o3d.geometry.TriangleMesh(V, F)
-            if obj.startswith('simulated'):
-                mesh = mesh.subdivide_loop(number_of_iterations=2)
+            if obj.startswith('simulated') and self.subdiv:
+                mesh = mesh.subdivide_loop(number_of_iterations=self.subdiv_time)
             self.meshes[obj].vertices = mesh.vertices
             self.meshes[obj].triangles = mesh.triangles
             self.meshes[obj].compute_vertex_normals()
@@ -135,6 +139,6 @@ class Render:
 
         self.vis.update_renderer()
         if self.saving and self.update_times % self.saving_interval == 0:
-            self.vis.capture_screen_image("{}{:05d}.png".format(self.saving_path, self.update_times//self.saving_interval), False)
+            self.vis.capture_screen_image("{}{:07d}.png".format(self.saving_path, self.update_times), False)
         self.update_times += 1
 
