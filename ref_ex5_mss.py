@@ -52,7 +52,7 @@ def init():
 
     for i, j in ti.ndrange(N, N):
         x[i, j] = ti.Vector(
-            [(i + 0.5) * L - 0.5 * W, (j / 1.3 + 0.5) * L / ti.sqrt(2) + 1.0, j * L / ti.sqrt(2) - 0.4 * W]
+            [(i + 0.5) * L - 0.5 * W, (0.5 + 0.5) * L / ti.sqrt(2) + 1.0, j * L / ti.sqrt(2) - 0.4 * W]
         )
 
         if i < N - 1 and j < N - 1:
@@ -164,6 +164,13 @@ sphere.paint_uniform_color([1.0, 0.4, 0.2])
 sphere.compute_vertex_normals()
 vis.add_geometry(sphere)
 
+# stanford bunny
+bunny = o3d.io.read_triangle_mesh('obj/bun_zipper_res4.ply')
+bunny.paint_uniform_color([1.0, 0.4, 0.2])
+bunny.compute_vertex_normals()
+bunny.compute_triangle_normals()
+vis.add_geometry(bunny)
+
 # ground plane mesh
 def create_ground_plane():
     N = 16
@@ -236,9 +243,12 @@ while True:
     sphere.compute_triangle_normals()
     mesh_ground.compute_vertex_normals()
     mesh_ground.compute_triangle_normals()
+    bunny.compute_vertex_normals()
+    bunny.compute_triangle_normals()
     o3d.io.write_triangle_mesh('obj/cloth_large_new.obj', mesh=mesh)
     o3d.io.write_triangle_mesh('obj/sphere_large_new.obj', mesh=sphere)
     o3d.io.write_triangle_mesh('obj/ground.obj', mesh=mesh_ground)
+    o3d.io.write_triangle_mesh('obj/bunny.obj', mesh=bunny)
     break
 
     if not vis.poll_events():

@@ -15,7 +15,7 @@ class Simulation(object):
         self.num_static_object = len(self.module.static_objects)
         self.max_run_step = max_run_step
         self.render_step = render_step
-        self.solver_iterations = 20
+        self.solver_iterations = 10
         # self.iteration_field = ti.Vector.field(1, float, self.solver_iterations)
         self.time_step = 1e-3
         self.gravity = 0.981
@@ -23,10 +23,10 @@ class Simulation(object):
         self.wind_oscillation = 0
         self.velocity_damping = 0.999
         self.stretch_factor = 0.8
-        self.bend_factor = 0.001  # best 0.003
-        self.collision_threshold = 4e-3
+        self.bend_factor = 0.003  # best 0.003
+        self.collision_threshold = 1e-3  # 1e-3 or 1.8e-2
         self.self_collision_threshold = 1e-2
-        self.cloth_thickness = 3e-2
+        self.cloth_thickness = 2e-2
         self.self_col_factor = 0.5
         self.restitution = 0.0
         self.friction = 1.0
@@ -149,7 +149,7 @@ class Simulation(object):
                     if surface_norm.dot(ray_direction) > 0:
                             surface_norm = - surface_norm
                     cos = -surface_norm.dot(ray_direction)
-                    if t[0] <= ray.norm() + self.collision_threshold:
+                    if t[0] * 0.5 <= ray.norm() + self.collision_threshold:
                         # only build collision constraint with the closest triangle
                         if t[0] < min_t:
                             min_t = t[0]
@@ -280,7 +280,7 @@ class Simulation(object):
 
         # for _ in range(1):  # todo cancel out sequential
         self.distance_constraint.project()
-        # self.bend_constrain.project()
+        self.bend_constrain.project()
 
 
         # fix the (0, 0) of cloth
