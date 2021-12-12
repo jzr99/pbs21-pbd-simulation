@@ -3,7 +3,7 @@ import os
 import tqdm
 
 fps = 30
-image_folder = 'images/1639233614'
+image_folder = 'images/cloth-ball-bend-0.001-stable'
 name = 'video_{:3d}.mp4'.format(fps)
 video_path = os.path.join(image_folder, name)
 

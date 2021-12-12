@@ -25,6 +25,7 @@ class CollisionConstraints:
         self.has_constraint = ti.field(dtype=ti.int32, shape=(sum(num_dynamic_ver)))
         self.surface_norm = ti.Vector.field(3, dtype=ti.float32, shape=(sum(num_dynamic_ver)))
         self.entry_point = ti.Vector.field(3, dtype=ti.float32, shape=(sum(num_dynamic_ver)))
+        self.has_projected_constraint = ti.field(dtype=ti.int32, shape=(sum(num_dynamic_ver)))
 
         # dynamic collision global data structure
         self.has_self_constraint = ti.field(dtype=ti.int32, shape=(sum(num_dynamic_ver)))
@@ -37,6 +38,7 @@ class CollisionConstraints:
     def reset(self):
         for i in ti.grouped(self.has_constraint):
             self.has_constraint[i] = 0
+            self.has_projected_constraint[i] = 0
 
             self.has_self_constraint[i] = 0
 
@@ -80,7 +82,7 @@ class CollisionConstraints:
         self.self_other_vertices_idx[global_index].z = p3
 
     @ti.pyfunc
-    def project(self, global_var_idx, p: ti.template()):
+    def project(self, global_var_idx, stiffness, p: ti.template()):
 
         if self.has_constraint[global_var_idx] == 0:
             pass
@@ -92,13 +94,16 @@ class CollisionConstraints:
             if entry_to_p.dot(surface_norm) >= 0:
                 pass
             else:
-                disp_length = entry_to_p.dot(surface_norm)   # todo how much offset do we need push back ?
-                p = p + disp_length * entry_to_p.normalized()
+                self.has_projected_constraint[global_var_idx] = 1
+                # disp_length = entry_to_p.dot(surface_norm)   # todo how much offset do we need push back ?
+                disp_length = -entry_to_p.norm()
+                p = p + disp_length * entry_to_p.normalized() * stiffness
+                # p = p + disp_length * (-surface_norm)
 
 
     @ti.pyfunc
     def calibrate_colliding_vertices(self, global_var_idx: int, v: ti.template()):
-        if self.has_constraint[global_var_idx] == 1:  # todo consider self collision ?
+        if self.has_constraint[global_var_idx] == 1 and self.has_projected_constraint[global_var_idx] == 1:  # todo consider self collision ?
             # get the mesh index and vertice index of the constrained vertices
 
             # apply velocity reflection

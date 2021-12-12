@@ -5,7 +5,7 @@ import time, os
 pause = False
 
 class Render:
-    def __init__(self, objs, saving: bool, saving_folder, subdiv=True, subdiv_time=2, ctr_rotate=0.0, save_step=1):
+    def __init__(self, objs, saving: bool, saving_folder, subdiv=True, subdiv_time=2, ctr_rotate=0.0):
         """
         :param objs: dict()
             {
@@ -76,7 +76,6 @@ class Render:
 
         self.saving = saving
         self.update_times = 0
-        self.saving_interval = save_step
         self.subdiv = subdiv
         self.subdiv_time = subdiv_time
         self.ctr_rotate = ctr_rotate
@@ -132,13 +131,12 @@ class Render:
             self.meshes[obj].compute_vertex_normals()
             self.meshes[obj].compute_triangle_normals()
             self.meshes[obj].paint_uniform_color(self.colors[obj])
-            
             #self.meshes[obj].filter_smooth_laplacian(number_of_iterations=10)
             
             self.vis.update_geometry(self.meshes[obj])
 
         self.vis.update_renderer()
-        if self.saving and self.update_times % self.saving_interval == 0:
-            self.vis.capture_screen_image("{}{:07d}.png".format(self.saving_path, self.update_times // self.saving_interval), False)
+        if self.saving:
+            self.vis.capture_screen_image("{}{:07d}.png".format(self.saving_path, self.update_times), False)
         self.update_times += 1
 

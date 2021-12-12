@@ -8,7 +8,7 @@ ti.init(arch=ti.cpu)
 
 ### Parameters
 
-N = 128 #128
+N = 64 #128
 W = 2
 L = W / N
 gravity = 9.8
@@ -158,7 +158,7 @@ mesh.compute_triangle_normals()
 vis.add_geometry(mesh)
 
 # sphere mesh
-sphere = o3d.geometry.TriangleMesh.create_sphere(radius=ball_radius, resolution=120)
+sphere = o3d.geometry.TriangleMesh.create_sphere(radius=ball_radius, resolution=60)
 sphere.translate(ball_centers[0])
 sphere.paint_uniform_color([1.0, 0.4, 0.2])
 sphere.compute_vertex_normals()
