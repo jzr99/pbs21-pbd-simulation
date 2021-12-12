@@ -190,6 +190,11 @@ class Mesh:
             self.velocities[i] += force
 
     @ti.func
+    def apply_impulse_wind(self, force):
+        for i in ti.ndrange(*self.velocities.shape):
+            self.velocities[i] += force * (ti.random() + 1)
+
+    @ti.func
     def translate(self, translate):
         for i in ti.ndrange(*self.vertices.shape):
             self.vertices[i] += translate

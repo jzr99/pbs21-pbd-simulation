@@ -19,25 +19,25 @@ class Simulation(object):
         # self.iteration_field = ti.Vector.field(1, float, self.solver_iterations)
         self.time_step = 1e-3
         self.gravity = 0.981
-        self.wind_speed = 0.3
+        self.wind_speed = -0.6
         self.wind_oscillation = 0
         self.velocity_damping = 0.999
         self.stretch_factor = 0.8
-        self.bend_factor = 0.001  # best 0.003
+        self.bend_factor = 0.003  # best 0.003
         self.collision_threshold = 4e-3
         self.self_collision_threshold = 1e-2
         self.cloth_thickness = 3e-2
         self.self_col_factor = 0.5
-        self.restitution = 0.0
-        self.friction = 1.0
+        self.restitution = 0.5
+        self.friction = 0.5
         self.wireframe = False
         self.render = render
         self._mesh_now = self.module.simulated_objects[0]
         self._static_mesh = self.module.static_objects[0] if len(self.module.static_objects) > 0 else None
         self._dynamic_mesh = self.module.simulated_objects[0]
         self._ground_mesh = self.module.static_objects[1] if len(self.module.static_objects) > 1 else None
-        self.self_collision = True if len(self.module.simulated_objects) == 1 else False
-        # self.self_collision = False
+        # self.self_collision = True if len(self.module.simulated_objects) == 1 else False
+        self.self_collision = False
         self.collision_constraint = CollisionConstraints(self.module.simulated_objects, self.friction, self.restitution)
         self.collision_stiffness = 1.0
         self.distance_constraint = DistanceConstraintsBuilder(mesh=self.module.simulated_objects[0], stiffness_factor=self.stretch_factor,
@@ -55,7 +55,8 @@ class Simulation(object):
             count += 1
             if count % int(1 / self.time_step * 1e-1) == 0:
                 print('simulation at {}'.format(count))
-            self.wind_oscillation += 0.01
+                print(np.cos(self.wind_oscillation))
+            self.wind_oscillation += 0.1
             if not self.render.get_pause() and count < self.max_run_step:
                 self.simulate()
                 if count % self.render_step == 0:
@@ -105,7 +106,7 @@ class Simulation(object):
         if self._mesh_now.gravity_affected:
             self._mesh_now.apply_impulse(2.0 * self.time_step * ti.Vector([0.0, -self.gravity, 0.0]))
         if self._mesh_now.wind_affected:
-            self._mesh_now.apply_impulse(2.0 * self.time_step * ti.Vector([0.0, 0.0, self.wind_speed + self.wind_speed * np.sin(self.wind_oscillation)]))
+            self._mesh_now.apply_impulse_wind(2.0 * self.time_step * ti.Vector([np.cos(self.wind_oscillation), 0.0, self.wind_speed + self.wind_speed * np.cos(self.wind_oscillation)]))
 
         # velocity damping
         for i in ti.grouped(self._mesh_now.velocities):
@@ -280,12 +281,12 @@ class Simulation(object):
 
         # for _ in range(1):  # todo cancel out sequential
         self.distance_constraint.project()
-        # self.bend_constrain.project()
+        self.bend_constrain.project()
 
 
         # fix the (0, 0) of cloth
-        # self._mesh_now.estimated_vertices[406] = self._mesh_now.vertices[406]
-        # self._mesh_now.estimated_vertices[431] = self._mesh_now.vertices[431]
+        self._mesh_now.estimated_vertices[0] = self._mesh_now.vertices[0]
+        self._mesh_now.estimated_vertices[30] = self._mesh_now.vertices[30]
         # self._mesh_now.estimated_vertices[499] = self._mesh_now.vertices[499]
         # self._mesh_now.estimated_vertices[524] = self._mesh_now.vertices[524]
 
