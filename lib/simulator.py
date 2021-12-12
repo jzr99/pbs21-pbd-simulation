@@ -13,20 +13,20 @@ from lib import utils
 class Simulation(object):
 
     def __init__(self, module: Module, render, **kwargs):
-        self.total_step = 100
+        self.total_step = 45
         self.module = module
-        self.solver_iterations = 4
+        self.solver_iterations = 10
         # self.iteration_field = ti.Vector.field(1, float, self.solver_iterations)
-        self.time_step = 5e-3
+        self.time_step = 1e-2
         self.gravity = 0.981
         # self.wind_speed = 1.0
         self.wind_oscillation = 0
         self.velocity_damping = 0.99
         self.stretch_factor = 0.999
-        self.bend_factor = 0.001
-        self.collision_threshold = 5e-2
-        self.self_collision_threshold = 1e-1
-        self.cloth_thickness = 1e-1
+        self.bend_factor = 0.1
+        self.collision_threshold = 1e-2
+        self.self_collision_threshold = 1e-2
+        self.cloth_thickness = 1e-2
         self.self_col_factor = 1.0
         self.wireframe = False
         self.render = render
@@ -219,7 +219,7 @@ class Simulation(object):
                 self.simulate_self_constraint_project()
             # project by internal constraint
             self.simulate_distance_project()
-            self.simulate_bend_project()
+            # self.simulate_bend_project()
         #
         #     # with ti.Tape(self.loss):
         #     #     self.simulate_internal_constraint_project()
@@ -352,7 +352,7 @@ class Simulation(object):
             v2 = self._static_mesh.vertices[v2_idx]
             t = ray_triangle_intersect(ray_origin, ray_direction, v0, v1, v2)
             # collision detected
-            if t[0] > 0 and t[0] * 0.5 <= ray.norm() + self.collision_threshold:
+            if t[0] > 0 and t[0] <= ray.norm() + self.collision_threshold:
                 # compute surface norm: make sure it is in the reverse direction of ray
                 surface_norm = (v1 - v0).cross(v2 - v0).normalized()
                 if surface_norm.dot(ray_direction) > 0:

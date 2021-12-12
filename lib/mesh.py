@@ -5,8 +5,6 @@ import numpy as np
 from collections import defaultdict
 import open3d as o3d
 
-from taichi.misc.util import vec
-
 from .bounding_box import BoundingBox
 import lib.utils as utils
 

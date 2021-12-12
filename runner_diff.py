@@ -8,7 +8,7 @@ from lib.simulator import Simulation
 
 def init_sim(render=None, **kwargs):
     mesh_sphere = Mesh(filename='./obj/sphere.obj', color=[1.0, 0.4, 0.2], rescale=0.1, translation=[0, 0.4, 0])
-    mesh_cloth = Mesh(filename='./obj/cloth.obj', color=[0.5, 0.5, 0.5], rescale=0.2, translation=[0.5, 0.8, 0.3])
+    mesh_cloth = Mesh(filename='./obj/cloth.obj', color=[0.5, 0.5, 0.5], rescale=0.1, translation=[0.0, 0.8, 0.0])
     mesh_cloth.set_gravity_affected(True)
     mesh_cloth.set_wind_affected(True)
     module = Module()
