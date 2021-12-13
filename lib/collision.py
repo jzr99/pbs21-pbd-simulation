@@ -33,6 +33,7 @@ class CollisionConstraints:
         self.self_collision_entry_point = ti.Vector.field(3, dtype=ti.float32, shape=(sum(num_dynamic_ver)))
         self.self_other_vertices_idx = ti.Vector.field(3, dtype=ti.int32, shape=(sum(num_dynamic_ver)))
         self.self_collision_sum = ti.field(dtype=ti.float32, shape=(), needs_grad=True)
+        self.self_collision_count = ti.field(dtype=ti.int32, shape=())
 
     @ti.kernel
     def reset(self):

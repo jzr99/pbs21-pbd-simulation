@@ -1,6 +1,7 @@
 import taichi as ti
 from lib.mesh import Vertex
 import numpy as np
+import pandas as pd
 from lib.module import Module
 from lib.distance_constrain import DistanceConstraintsBuilder
 from lib.bending_constrain import BendingConstraints
@@ -10,12 +11,14 @@ from lib.collision import CollisionConstraints, ray_triangle_intersect
 @ti.data_oriented
 class Simulation(object):
 
-    def __init__(self, module: Module, render, max_run_step=10000, render_step=1):
+    def __init__(self, module: Module, render, max_run_step=10000, render_step=1, export_bend_step=2500, export_self_collision_step=10):
         self.module = module
         self.num_static_object = len(self.module.static_objects)
         self.max_run_step = max_run_step
         self.render_step = render_step
         self.solver_iterations = 20
+        self.export_bend_step = export_bend_step
+        self.export_self_collision_step = export_self_collision_step
         # self.iteration_field = ti.Vector.field(1, float, self.solver_iterations)
         self.time_step = 1e-3
         self.gravity = 0.981
@@ -24,9 +27,9 @@ class Simulation(object):
         self.velocity_damping = 0.999
         self.stretch_factor = 0.8
         self.bend_factor = 0.001  # best 0.003
-        self.collision_threshold = 4e-3
+        self.collision_threshold = 1e-2
         self.self_collision_threshold = 1e-2
-        self.cloth_thickness = 3e-2
+        self.cloth_thickness = 1e-2
         self.self_col_factor = 0.5
         self.restitution = 0.0
         self.friction = 1.0
@@ -51,18 +54,26 @@ class Simulation(object):
 
     def run(self):
         count = 0
+        self_collision_count = list()
         while True:
             count += 1
             if count % int(1 / self.time_step * 1e-1) == 0:
                 print('simulation at {}'.format(count))
             self.wind_oscillation += 0.01
-            if not self.render.get_pause() and count < self.max_run_step:
-                self.simulate()
+            if not self.render.get_pause() and count <= self.max_run_step:
+                info = self.simulate()
                 if count % self.render_step == 0:
                     self.rendering()
-            if count == 10000:
+
+            # record bending information
+            if count == self.export_bend_step:
                 # file format p1_index p2_index p3_index p4_index angle
                 self.bend_constrain.write_angle_csv('./bending_angle.csv')
+            # record self-collision information
+            if self.export_self_collision_step > 0 and count % self.export_self_collision_step == 0:
+                self_collision_count.append((count, info['self-collision-count']))
+
+            # interactive check
             if not self.render.vis.poll_events():
                 break
             self.render.vis.update_renderer()
@@ -70,7 +81,13 @@ class Simulation(object):
             if count > self.max_run_step:
                 break
 
+        # export self collision statistics
+        table = pd.DataFrame(self_collision_count, columns=['step', 'self collision num'], dtype=int)
+        table.to_csv('./self_collision_statistics.csv', index=False)
+
     def simulate(self):
+        info = dict()
+
         # velocity and position update under external forces
         self.simulate_estimate()
 
@@ -79,7 +96,7 @@ class Simulation(object):
         # static collision
         self.build_collision_constraints(self.num_static_object)
         # dynamic self collision
-        if self.self_collision:
+        if self.self_collision or self.export_self_collision_step > 0:
             # self._dynamic_mesh = self.module.simulated_objects[0]
             self.build_self_collision_constraint()
         # ----------------------------------------
@@ -89,8 +106,10 @@ class Simulation(object):
             # project by internal constraint
             self.simulate_internal_constraint_project()
             # project by internal self collision constraint
+            info['self-collision-count'] = self.count_self_collision()
             if self.self_collision:
-                self.simulate_self_constraint_project()
+                count = self.simulate_self_constraint_project()
+                assert count == info['self-collision-count']
             # project by external/collision constraint
             self.simulate_external_constraint_project()
         # ----------------------------------------
@@ -98,7 +117,8 @@ class Simulation(object):
         # ----- calibration (velocity and position update), friction apply -----
         self.simulate_calibration_all()
         self.simulate_calibration_collision()
-    # -----------------------------------------------------------------------
+        # -----------------------------------------------------------------------
+        return info
 
     @ti.kernel
     def simulate_estimate(self):
@@ -299,11 +319,12 @@ class Simulation(object):
                 self.collision_constraint.project(global_index, stiffness, self._dynamic_mesh.estimated_vertices[dyn_ver_idx])
 
     @ti.kernel
-    def simulate_self_constraint_project(self):
+    def simulate_self_constraint_project(self) -> int:
         # with ti.Tape(self.collision_constraint.self_collision_sum):
         #     self.compute_valid_self_collision_sum()
         # for _ in range(1):  # todo cancel out sequential
-        self.project_self_collision()
+        self_collision_count = self.project_self_collision()
+        return self_collision_count
 
     @ti.kernel
     def compute_valid_self_collision_sum(self):
@@ -323,10 +344,13 @@ class Simulation(object):
 
     @ti.func
     def project_self_collision(self):
+        count = 0
         for dyn_ver_idx in ti.ndrange(self._dynamic_mesh.estimated_vertices.shape[0]):
             # no self collision in the collision detection phase
             if self.collision_constraint.has_self_constraint[dyn_ver_idx] == 0:
                 continue
+
+            count += 1
 
             v0_idx, v1_idx, v2_idx = self.collision_constraint.self_other_vertices_idx[dyn_ver_idx]
             v0 = self._dynamic_mesh.estimated_vertices[v0_idx]
@@ -383,6 +407,16 @@ class Simulation(object):
             self._dynamic_mesh.estimated_vertices[v1_idx] += -s * dc_dp1
             self._dynamic_mesh.estimated_vertices[v2_idx] += -s * dc_dp2
             self._dynamic_mesh.estimated_vertices[dyn_ver_idx] += -s * dc_dq
+
+        return count
+
+    @ti.kernel
+    def count_self_collision(self) -> ti.int32:
+        self.collision_constraint.self_collision_count[None] = 0
+        for index in ti.ndrange(self.collision_constraint.has_self_constraint.shape[0]):
+            if self.collision_constraint.has_self_constraint[index] > 0:
+                self.collision_constraint.self_collision_count[None] += 1
+        return self.collision_constraint.self_collision_count[None]
 
     @ti.kernel
     def simulate_calibration_all(self):
