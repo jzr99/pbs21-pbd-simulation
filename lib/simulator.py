@@ -13,28 +13,28 @@ from lib import utils
 class Simulation(object):
 
     def __init__(self, module: Module, render, **kwargs):
-        self.total_step = 45
+        self.total_step = 100
         self.module = module
         self.solver_iterations = 10
         # self.iteration_field = ti.Vector.field(1, float, self.solver_iterations)
-        self.time_step = 1e-2
+        self.time_step = 5e-3
         self.gravity = 0.981
         # self.wind_speed = 1.0
         self.wind_oscillation = 0
         self.velocity_damping = 0.99
         self.stretch_factor = 0.999
-        self.bend_factor = 0.1
+        self.bend_factor = 0.05
         self.collision_threshold = 1e-2
         self.self_collision_threshold = 1e-2
         self.cloth_thickness = 1e-2
-        self.self_col_factor = 1.0
+        self.self_col_factor = 2.0
         self.wireframe = False
         self.render = render
         self._mesh_now = None
         self._static_mesh = None
         self._dynamic_mesh = None
         # self.self_collision = True if len(self.module.simulated_objects) == 1 else False
-        self.self_collision = False
+        self.self_collision = True
         self.collision_constraint = CollisionConstraints(self.module.simulated_objects)
         self.distance_constraint = DistanceConstraintsBuilder(mesh=self.module.simulated_objects[0], stiffness_factor=0.8,
                                                               solver_iterations=self.solver_iterations)
@@ -47,6 +47,11 @@ class Simulation(object):
         self.init_point = self.module.simulated_objects[0].vertices[0]
         self.loss = ti.field(dtype=ti.f32, needs_grad=True)
         self.wind_speed = ti.Vector.field(n=3, dtype=ti.f32, needs_grad=True)
+        self.air_noisy = ti.Vector.field(n=3, dtype=ti.f32, shape=(self.module.simulated_objects[0].num_vertices))
+        self.air_noisy.from_numpy(np.random.randn(self.module.simulated_objects[0].num_vertices, 3)*0.01)
+        # for i in ti.ndrange(*self.air_noisy.shape):
+        #     self.air_noisy *= 2.0 * self.time_step *
+        # print(self.air_noisy)
         self.lr = 40
         ti.root.place(self.loss)
         ti.root.place(self.wind_speed)
@@ -219,7 +224,7 @@ class Simulation(object):
                 self.simulate_self_constraint_project()
             # project by internal constraint
             self.simulate_distance_project()
-            # self.simulate_bend_project()
+            self.simulate_bend_project()
         #
         #     # with ti.Tape(self.loss):
         #     #     self.simulate_internal_constraint_project()
@@ -318,6 +323,7 @@ class Simulation(object):
     def simulate_estimate(self):
         for i in ti.grouped(self._mesh_now.velocities):
             self._mesh_now.velocities[i] = 2.0 * self.time_step * ti.Vector([0.0, -self.gravity, 0.0]) + self._mesh_now.velocities[i]
+            self._mesh_now.velocities[i] = 2.0 * self.time_step * self.air_noisy[i] + self._mesh_now.velocities[i]
             self._mesh_now.velocities[i] = (2.0 * self.time_step * ti.Vector([self.wind_speed[None][0] + np.sin(self.wind_oscillation), 0.0, self.wind_speed[None][2] + np.sin(self.wind_oscillation)])) + self._mesh_now.velocities[i]
             self._mesh_now.estimated_vertices[i] = self._mesh_now.vertices[i] + self.time_step * self._mesh_now.velocities[i]
         # for i in ti.grouped(self._mesh_now.velocities):
@@ -541,7 +547,8 @@ class Simulation(object):
 
                     # projection
                     s = constraint / (dc_dq.norm() ** 2 + dc_dp0.norm() ** 2 + dc_dp1.norm() ** 2 + dc_dp2.norm() ** 2)
-                    s = s * (1 - (1 - self.self_col_factor) ** (1 / self.solver_iterations))
+                    # s = s * (1 - (1 - self.self_col_factor) ** (1 / self.solver_iterations))
+                    s *= self.self_col_factor
                     self._dynamic_mesh.estimated_vertices[v0_idx] += -s * dc_dp0
                     self._dynamic_mesh.estimated_vertices[v1_idx] += -s * dc_dp1
                     self._dynamic_mesh.estimated_vertices[v2_idx] += -s * dc_dp2
