@@ -68,7 +68,8 @@ class Render:
         # render and view options
         self.rdr = self.vis.get_render_option()
         self.rdr.mesh_show_back_face = True
-        # rdr.mesh_show_wireframe = True
+        self.rdr.mesh_show_wireframe = True
+        self.rdr.light_on = False
         self.ctr = self.vis.get_view_control()
         self.set_ctr_from_json('./render/view_control.json')
         #self.ctr.set_lookat([0.2, 0.8, -0.2])

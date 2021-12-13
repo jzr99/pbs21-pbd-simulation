@@ -95,10 +95,10 @@ class CollisionConstraints:
                 pass
             else:
                 self.has_projected_constraint[global_var_idx] = 1
-                # disp_length = entry_to_p.dot(surface_norm)   # todo how much offset do we need push back ?
-                disp_length = -entry_to_p.norm()
-                p = p + disp_length * entry_to_p.normalized() * stiffness
-                # p = p + disp_length * (-surface_norm)
+                disp_length = entry_to_p.dot(surface_norm)   # todo how much offset do we need push back ?
+                # disp_length = -entry_to_p.norm()
+                # p = p + disp_length * entry_to_p.normalized() * stiffness
+                p = p + disp_length * (-surface_norm)
 
 
     @ti.pyfunc

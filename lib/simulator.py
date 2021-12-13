@@ -21,14 +21,14 @@ class Simulation(object):
         self.gravity = 0.981
         self.wind_speed = -0.6
         self.wind_oscillation = 0
-        self.velocity_damping = 0.999
+        self.velocity_damping = 1.0
         self.stretch_factor = 0.8
         self.bend_factor = 0.003  # best 0.003
         self.collision_threshold = 4e-3
         self.self_collision_threshold = 1e-2
         self.cloth_thickness = 3e-2
         self.self_col_factor = 0.5
-        self.restitution = 0.5
+        self.restitution = 1.5
         self.friction = 0.5
         self.wireframe = False
         self.render = render
@@ -55,7 +55,6 @@ class Simulation(object):
             count += 1
             if count % int(1 / self.time_step * 1e-1) == 0:
                 print('simulation at {}'.format(count))
-                print(np.cos(self.wind_oscillation))
             self.wind_oscillation += 0.1
             if not self.render.get_pause() and count < self.max_run_step:
                 self.simulate()
@@ -157,6 +156,7 @@ class Simulation(object):
                             min_idx = static_triangle_idx
 
             if min_t < float('inf'):
+                #print("collision detected!")
                 v0_idx, v1_idx, v2_idx = self._static_mesh.triangle[min_idx]
                 v0 = self._static_mesh.vertices[v0_idx]
                 v1 = self._static_mesh.vertices[v1_idx]
@@ -285,8 +285,8 @@ class Simulation(object):
 
 
         # fix the (0, 0) of cloth
-        self._mesh_now.estimated_vertices[0] = self._mesh_now.vertices[0]
-        self._mesh_now.estimated_vertices[30] = self._mesh_now.vertices[30]
+        # self._mesh_now.estimated_vertices[0] = self._mesh_now.vertices[0]
+        # self._mesh_now.estimated_vertices[30] = self._mesh_now.vertices[30]
         # self._mesh_now.estimated_vertices[499] = self._mesh_now.vertices[499]
         # self._mesh_now.estimated_vertices[524] = self._mesh_now.vertices[524]
 
