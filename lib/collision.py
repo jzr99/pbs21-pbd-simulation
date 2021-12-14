@@ -89,10 +89,12 @@ class CollisionConstraints:
             if entry_to_p.dot(surface_norm) >= 0:
                 pass
             else:
-                disp_length = -entry_to_p.dot(surface_norm)  # new
-                # disp_length = -entry_to_p.norm()  # todo how much offset do we need push back ?
-                p = p + disp_length * surface_norm  # new
-                # p = p + disp_length * entry_to_p.normalized()
+                disp_length = -entry_to_p.norm()  # todo how much offset do we need push back ?
+                p = p + disp_length * entry_to_p.normalized()
+                # disp_length = -entry_to_p.dot(surface_norm)  # new
+                # # disp_length = -entry_to_p.norm()  # todo how much offset do we need push back ?
+                # p = p + disp_length * surface_norm  # new
+                # # p = p + disp_length * entry_to_p.normalized()
 
     @ti.func
     def calibrate_colliding_vertices(self, global_var_idx: int, v: ti.template()):

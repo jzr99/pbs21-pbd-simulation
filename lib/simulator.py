@@ -13,7 +13,7 @@ from lib import utils
 class Simulation(object):
 
     def __init__(self, module: Module, render, **kwargs):
-        self.total_step = 100
+        self.total_step = 280
         self.module = module
         self.solver_iterations = 10
         # self.iteration_field = ti.Vector.field(1, float, self.solver_iterations)
@@ -21,10 +21,10 @@ class Simulation(object):
         self.gravity = 0.981
         # self.wind_speed = 1.0
         self.wind_oscillation = 0
-        self.velocity_damping = 0.99
+        self.velocity_damping = 0.95
         self.stretch_factor = 0.999
-        self.bend_factor = 0.05
-        self.collision_threshold = 1e-2
+        self.bend_factor = 0.02
+        self.collision_threshold = 5e-3
         self.self_collision_threshold = 1e-2
         self.cloth_thickness = 1e-2
         self.self_col_factor = 2.0
@@ -34,7 +34,7 @@ class Simulation(object):
         self._static_mesh = None
         self._dynamic_mesh = None
         # self.self_collision = True if len(self.module.simulated_objects) == 1 else False
-        self.self_collision = True
+        self.self_collision = False
         self.collision_constraint = CollisionConstraints(self.module.simulated_objects)
         self.distance_constraint = DistanceConstraintsBuilder(mesh=self.module.simulated_objects[0], stiffness_factor=0.8,
                                                               solver_iterations=self.solver_iterations)
@@ -70,89 +70,19 @@ class Simulation(object):
         self.wind_speed.grad[None][0] = 0.0
         self.wind_speed.grad[None][2] = 0.0
 
-    # def init_episode(self):
-    #     mesh_sphere = Mesh(filename='./obj/sphere.obj', color=[1.0, 0.4, 0.2], rescale=0.1, translation=[0, 0.4, 0])
-    #     mesh_cloth = Mesh(filename='./obj/cloth.obj', color=[0.5, 0.5, 0.5], rescale=0.2, translation=[0.5, 0.8, 0.3])
-    #     mesh_cloth.set_gravity_affected(True)
-    #     mesh_cloth.set_wind_affected(True)
-    #     module = Module()
-    #     module.add_static_objects(mesh_sphere)
-    #     module.add_simulated_objects(mesh_cloth)
-    #     # render = Render({'static_0': mesh_sphere.export_for_render(), 'simulated_0': mesh_cloth.export_for_render()})
-    #     self.module = module
-    #     # self.render = render
-    #     self.solver_iterations = 4
-    #     # self.iteration_field = ti.Vector.field(1, float, self.solver_iterations)
-    #     self.time_step = 1e-3
-    #     self.gravity = 0.981
-    #     # self.wind_speed = 1.0
-    #     self.wind_oscillation = 0
-    #     self.velocity_damping = 0.99
-    #     self.stretch_factor = 0.999
-    #     self.bend_factor = 0.001
-    #     self.collision_threshold = 5e-3
-    #     self.self_collision_threshold = 1e-1
-    #     self.cloth_thickness = 1e-2
-    #     self.self_col_factor = 1.0
-    #     self.wireframe = False
-    #     # self.render = render
-    #     self._mesh_now = None
-    #     self._static_mesh = None
-    #     self._dynamic_mesh = None
-    #     # self.self_collision = True if len(self.module.simulated_objects) == 1 else False
-    #     self.self_collision = False
-    #     self.collision_constraint = CollisionConstraints(self.module.simulated_objects)
-    #     self.distance_constraint = DistanceConstraintsBuilder(mesh=self.module.simulated_objects[0],
-    #                                                           stiffness_factor=0.8,
-    #                                                           solver_iterations=self.solver_iterations)
-    #     self.bend_constrain = BendingConstraints(mesh=self.module.simulated_objects[0], bend_factor=self.bend_factor,
-    #                                              solver_iterations=self.solver_iterations)
-    #     self.min_t = float('inf')
-    #     self.min_idx = 0
-    #
-    #     # self._mesh_now.estimated_vertices[0] = self._mesh_now.vertices[0]
-    #     self.init_point = self.module.simulated_objects[0].vertices[0]
-    #     self.loss = ti.field(dtype=ti.f32, needs_grad=True)
-    #     self.wind_speed = ti.Vector.field(n=3, dtype=ti.f32, needs_grad=True)
-    #     self.lr = 1000
-    #     ti.root.place(self.loss)
-    #     ti.root.place(self.wind_speed)
-    #     ti.root.lazy_grad()
-
     def run(self):
-        # with ti.Tape(self.loss):
         count = 0
         while count <= self.total_step:
-        # while True:
             count += 1
             self.wind_oscillation += 0.005
-            # if not self.render.get_pause():
-            # with ti.Tape(self.loss):
-            #     self.simulate()
-            #     self.compute_loss()
             if self.full_sim:
                 self.full_simulate()
             else:
                 self.simulate()
-            # print("self.loss", self.loss)
-            # self.wind_speed[None][0] -= self.wind_speed.grad[None][0] * self.lr
-            # self.wind_speed[None][2] -= self.wind_speed.grad[None][2] * self.lr
-            # print("grad", self.wind_speed.grad[None])
-            # self.wind_speed.grad[None][0] = 0.0
-            # self.wind_speed.grad[None][2] = 0.0
-            # print("self.wind_speed", self.wind_speed)
-            # print("self.module.simulated_objects[0].estimated_vertices[0]", self.module.simulated_objects[0].estimated_vertices[0])
-            # print(count)
             self.rendering()
             if not self.render.vis.poll_events():
                 exit(0)
             self.render.vis.update_renderer()
-            # self.compute_loss()
-        # self.wind_speed[None][0] -= self.wind_speed.grad[None][0] * self.lr
-        # self.wind_speed[None][2] -= self.wind_speed.grad[None][2] * self.lr
-        # print("grad", self.wind_speed.grad[None])
-        # self.wind_speed.grad[None][0] = 0.0
-        # self.wind_speed.grad[None][2] = 0.0
 
     @ti.func
     def cal_mean(self):
@@ -164,34 +94,18 @@ class Simulation(object):
 
     @ti.kernel
     def compute_loss(self):
-        # self.loss[None] = (self.module.simulated_objects[0].estimated_vertices[0] - self.init_point).norm()
-        # for i in ti.grouped(self.module.simulated_objects[0].estimated_vertices):
-        #     self.module.simulated_objects[0].estimated_vertices[i]
-        # self.loss[None] = (self.module.simulated_objects[0].estimated_vertices[0] - self.init_point).norm()
         self.loss[None] = (self.module.simulated_objects[0].estimated_vertices[self.module.simulated_objects[0].num_vertices // 2] - ti.Vector([0, 0.4, 0])).norm()
-        # self.loss[None] = self.loss.norm()
 
-    # def new_forward(self):
-    #     self.simulate_estimate()
-    #     print("center point", self.module.simulated_objects[0].estimated_vertices[self.module.simulated_objects[0].num_vertices // 2])
-    #     # self.update_estimate()
-    #     # self.forward()
 
     def full_simulate(self):
         for mesh in self.module.simulated_objects:
             self._mesh_now = mesh
             self.simulate_estimate()
-            print("center point", self.module.simulated_objects[0].estimated_vertices[self.module.simulated_objects[0].num_vertices // 2])       # self.new_forward()
-                # self.update_estimate()
-            # self.compute_loss()
-            # self.estimate_all()
+            print("center point", self.module.simulated_objects[0].estimated_vertices[self.module.simulated_objects[0].num_vertices // 2])
 
         # ----- collision constraints built -----
         global_offset = 0
         self.collision_constraint.reset()
-        # static collision
-        # with ti.Tape(self.loss):
-        # static collision
         for dyn_idx, dynamic_mesh in enumerate(self.module.simulated_objects):
             global_offset += dynamic_mesh.num_vertices
             for sta_idx, static_mesh in enumerate(self.module.static_objects):
@@ -209,7 +123,6 @@ class Simulation(object):
         # ----------------------------------------
 
         # ------------- projection ---------------
-        # with ti.Tape(self.loss):
         for _ in ti.static(range(self.solver_iterations)):
             global_offset = 0
             # project by external/collision constraint
@@ -225,11 +138,6 @@ class Simulation(object):
             # project by internal constraint
             self.simulate_distance_project()
             self.simulate_bend_project()
-        #
-        #     # with ti.Tape(self.loss):
-        #     #     self.simulate_internal_constraint_project()
-        #     #     self.compute_loss()
-        # ----------------------------------------
 
         # ----- calibration (velocity and position update), friction apply -----
         for mesh in self.module.simulated_objects:
@@ -251,71 +159,19 @@ class Simulation(object):
             self._mesh_now = mesh
             self.simulate_estimate()
             print("center point", self.module.simulated_objects[0].estimated_vertices[self.module.simulated_objects[0].num_vertices // 2])       # self.new_forward()
-                # self.update_estimate()
-            # self.compute_loss()
-            # self.estimate_all()
-
-        # ----- collision constraints built -----
-        # global_offset = 0
-        # self.collision_constraint.reset()
-        # # static collision
-        # # with ti.Tape(self.loss):
-        # # static collision
-        # for dyn_idx, dynamic_mesh in enumerate(self.module.simulated_objects):
-        #     global_offset += dynamic_mesh.num_vertices
-        #     for sta_idx, static_mesh in enumerate(self.module.static_objects):
-        #         self._dynamic_mesh = dynamic_mesh
-        #         self._static_mesh = static_mesh
-        #         # update the bounding box of static object for broad collision detection
-        #         self._static_mesh.bounding_box.update_bounding_box(self._static_mesh.vertices)
-        #         self.build_collision_constraints(global_offset)
-
-            # dynamic self collision
-        # if self.self_collision:
-        #     self._dynamic_mesh = self.module.simulated_objects[0]
-        #     self.build_self_collision_constraint()
-
         # ----------------------------------------
 
         # ------------- projection ---------------
         # with ti.Tape(self.loss):
         for _ in ti.static(range(self.solver_iterations)):
-            # global_offset = 0
-            # # project by external/collision constraint
-            # for dyn_idx, dynamic_mesh in enumerate(self.module.simulated_objects):
-            #     global_offset += dynamic_mesh.num_vertices
-            #     self._dynamic_mesh = dynamic_mesh
-            #     self.simulate_external_constraint_project(global_offset)
-
-            # project by internal self collision constraint
-            # if self.self_collision:
-            #     self._dynamic_mesh = self.module.simulated_objects[0]
-            #     self.simulate_self_constraint_project()
-            # project by internal constraint
             self.simulate_distance_project()
-        #
-        #     # with ti.Tape(self.loss):
-        #     #     self.simulate_internal_constraint_project()
-        #     #     self.compute_loss()
-        # ----------------------------------------
+
 
         # ----- calibration (velocity and position update), friction apply -----
         for mesh in self.module.simulated_objects:
             self._mesh_now = mesh
             self.simulate_calibration_all()
 
-
-        # global_offset = 0
-        # for dyn_idx, dynamic_mesh in enumerate(self.module.simulated_objects):
-        #     global_offset += dynamic_mesh.num_vertices
-        #     self._dynamic_mesh = dynamic_mesh
-        #     self.simulate_calibration_collision(global_offset)
-        # -----------------------------------------------------------------------
-
-    # @ti.kernel
-    # def estimate_all(self):
-    #     self.simulate_estimate()
-    #     self.update_estimate()
 
 
 
@@ -326,18 +182,7 @@ class Simulation(object):
             self._mesh_now.velocities[i] = 2.0 * self.time_step * self.air_noisy[i] + self._mesh_now.velocities[i]
             self._mesh_now.velocities[i] = (2.0 * self.time_step * ti.Vector([self.wind_speed[None][0] + np.sin(self.wind_oscillation), 0.0, self.wind_speed[None][2] + np.sin(self.wind_oscillation)])) + self._mesh_now.velocities[i]
             self._mesh_now.estimated_vertices[i] = self._mesh_now.vertices[i] + self.time_step * self._mesh_now.velocities[i]
-        # for i in ti.grouped(self._mesh_now.velocities):
-        #     self._mesh_now.estimated_vertices[i] = self._mesh_now.vertices[i] + self.time_step * self._mesh_now.velocities[i]
 
-        # for i in ti.ndrange(*self._mesh_now.velocities.shape):
-        #     # if self._mesh_now.gravity_affected:
-        #     #     self._mesh_now.apply_impulse(2.0 * self.time_step * ti.Vector([0.0, -self.gravity, 0.0]))
-        #     if self._mesh_now.wind_affected:
-        #         self._mesh_now.apply_impulse(2.0 * self.time_step * ti.Vector([self.wind_speed[None] + np.sin(self.wind_oscillation), 0.0, 0.0]))
-                # self._mesh_now.velocities[i] += (2.0 * self.time_step * ti.Vector([self.wind_speed[None] + np.sin(self.wind_oscillation), 0.0, 0.0]))
-
-    # @ti.func
-    # def apply_impose(self):
 
 
     @ti.kernel
@@ -348,7 +193,7 @@ class Simulation(object):
 
 
     @ti.pyfunc
-    def fucking_constraint(self, ray: ti.template(), ray_origin: ti.template(), ray_direction: ti.template()):
+    def finding_constraint(self, ray: ti.template(), ray_origin: ti.template(), ray_direction: ti.template()):
         min_t = float('inf')
         min_idx = 0
         for static_triangle_idx in range(self._static_mesh.triangle.shape[0]):
@@ -387,7 +232,7 @@ class Simulation(object):
                 # narrow collision detection
                 min_t = float('inf')
                 min_idx = 0
-                min_t, min_idx = self.fucking_constraint(ray, ray_origin, ray_direction)
+                min_t, min_idx = self.finding_constraint(ray, ray_origin, ray_direction)
 
                 if min_t < float('inf'):
                     v0_idx, v1_idx, v2_idx = self._static_mesh.triangle[min_idx]
