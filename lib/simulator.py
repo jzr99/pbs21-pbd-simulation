@@ -23,7 +23,7 @@ class Simulation(object):
         self.wind_oscillation = 0
         self.velocity_damping = 0.999
         self.stretch_factor = 0.8
-        self.bend_factor = 0.001  # best 0.003
+        self.bend_factor = 0.003  # best 0.003
         self.collision_threshold = 4e-3
         self.self_collision_threshold = 1e-2
         self.cloth_thickness = 3e-2
@@ -36,8 +36,8 @@ class Simulation(object):
         self._static_mesh = self.module.static_objects[0] if len(self.module.static_objects) > 0 else None
         self._dynamic_mesh = self.module.simulated_objects[0]
         self._ground_mesh = self.module.static_objects[1] if len(self.module.static_objects) > 1 else None
-        self.self_collision = True if len(self.module.simulated_objects) == 1 else False
-        # self.self_collision = False
+        # self.self_collision = True if len(self.module.simulated_objects) == 1 else False
+        self.self_collision = False
         self.collision_constraint = CollisionConstraints(self.module.simulated_objects, self.friction, self.restitution)
         self.collision_stiffness = 1.0
         self.distance_constraint = DistanceConstraintsBuilder(mesh=self.module.simulated_objects[0], stiffness_factor=self.stretch_factor,
@@ -280,7 +280,7 @@ class Simulation(object):
 
         # for _ in range(1):  # todo cancel out sequential
         self.distance_constraint.project()
-        # self.bend_constrain.project()
+        self.bend_constrain.project()
 
 
         # fix the (0, 0) of cloth
