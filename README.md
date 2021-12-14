@@ -1,5 +1,5 @@
-## diffShit
+## diffTaichi
 
-`python3 runner_diff.py` to start simulation. If Boss You could make collision constrain outside taichi kernel scope, the total pipeline could be diff, though the gradient could be wrong. 
+`python3 runner_diff.py` to start simulation. 
 
-The distance constrain is differentiable now, so we could add some vibration when the cloth falling down.
+The target is to make the cloth fall on the ball by controlling the wind speed.
