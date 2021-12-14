@@ -186,7 +186,7 @@ class Mesh:
 
     @ti.func
     def apply_impulse(self, force):
-        for i in ti.ndrange(*self.velocities.shape):
+        for i in range(4):
             self.velocities[i] += force
 
     @ti.func

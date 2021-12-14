@@ -23,12 +23,12 @@ class Simulation(object):
         self.wind_oscillation = 0
         self.velocity_damping = 1.0
         self.stretch_factor = 0.8
-        self.bend_factor = 0.003  # best 0.003
+        self.bend_factor = 0.1  # best 0.003
         self.collision_threshold = 4e-3
         self.self_collision_threshold = 1e-2
-        self.cloth_thickness = 3e-2
-        self.self_col_factor = 0.5
-        self.restitution = 1.5
+        self.cloth_thickness = 1e-3
+        self.self_col_factor = 3.0
+        self.restitution = 1.0
         self.friction = 0.5
         self.wireframe = False
         self.render = render
@@ -36,8 +36,8 @@ class Simulation(object):
         self._static_mesh = self.module.static_objects[0] if len(self.module.static_objects) > 0 else None
         self._dynamic_mesh = self.module.simulated_objects[0]
         self._ground_mesh = self.module.static_objects[1] if len(self.module.static_objects) > 1 else None
-        # self.self_collision = True if len(self.module.simulated_objects) == 1 else False
-        self.self_collision = False
+        self.self_collision = True if len(self.module.simulated_objects) == 1 else False
+        # self.self_collision = False
         self.collision_constraint = CollisionConstraints(self.module.simulated_objects, self.friction, self.restitution)
         self.collision_stiffness = 1.0
         self.distance_constraint = DistanceConstraintsBuilder(mesh=self.module.simulated_objects[0], stiffness_factor=self.stretch_factor,
@@ -57,7 +57,7 @@ class Simulation(object):
                 print('simulation at {}'.format(count))
             self.wind_oscillation += 0.1
             if not self.render.get_pause() and count < self.max_run_step:
-                self.simulate()
+                self.simulate(count)
                 if count % self.render_step == 0:
                     self.rendering()
             if count == 10000:
@@ -70,9 +70,9 @@ class Simulation(object):
             if count > self.max_run_step:
                 break
 
-    def simulate(self):
+    def simulate(self, count):
         # velocity and position update under external forces
-        self.simulate_estimate()
+        self.simulate_estimate(count)
 
         # ----- collision constraints built -----
         self.collision_constraint.reset()
@@ -92,7 +92,7 @@ class Simulation(object):
             if self.self_collision:
                 self.simulate_self_constraint_project()
             # project by external/collision constraint
-            self.simulate_external_constraint_project()
+            # self.simulate_external_constraint_project()
         # ----------------------------------------
 
         # ----- calibration (velocity and position update), friction apply -----
@@ -101,15 +101,17 @@ class Simulation(object):
     # -----------------------------------------------------------------------
 
     @ti.kernel
-    def simulate_estimate(self):
-        if self._mesh_now.gravity_affected:
-            self._mesh_now.apply_impulse(2.0 * self.time_step * ti.Vector([0.0, -self.gravity, 0.0]))
-        if self._mesh_now.wind_affected:
-            self._mesh_now.apply_impulse_wind(2.0 * self.time_step * ti.Vector([np.cos(self.wind_oscillation), 0.0, self.wind_speed + self.wind_speed * np.cos(self.wind_oscillation)]))
+    def simulate_estimate(self, count: int):
+        if count < 500:
+            if self._mesh_now.gravity_affected:
+                self._mesh_now.apply_impulse(2.0 * self.time_step * ti.Vector([0.0, -self.gravity, 0.0]))
+            if self._mesh_now.wind_affected:
+                self._mesh_now.apply_impulse_wind(2.0 * self.time_step * ti.Vector(
+                    [np.cos(self.wind_oscillation), 0.0, self.wind_speed + self.wind_speed * np.cos(self.wind_oscillation)]))
 
-        # velocity damping
-        for i in ti.grouped(self._mesh_now.velocities):
-            self._mesh_now.velocities[i] = self._mesh_now.velocities[i] * self.velocity_damping
+            # velocity damping
+            for i in ti.ndrange(self._mesh_now.velocities.shape[0]):
+                self._mesh_now.velocities[i] = self._mesh_now.velocities[i] * self.velocity_damping
 
         for i in ti.grouped(self._mesh_now.velocities):
             self._mesh_now.estimated_vertices[i] = self._mesh_now.vertices[i] + self.time_step * self._mesh_now.velocities[i]
@@ -233,14 +235,14 @@ class Simulation(object):
                 v1 = self._dynamic_mesh.estimated_vertices[v1_idx]
                 v2 = self._dynamic_mesh.estimated_vertices[v2_idx]
                 # if triangle and target vertice too far, skip
-                if (ray_origin - 1 / 3 * (v0 + v1 + v2)).norm() > self.self_collision_threshold:
-                    continue
+                # if (ray_origin - 1 / 3 * (v0 + v1 + v2)).norm() > self.self_collision_threshold:
+                #     continue
                 # if vertices and triangle are too close based on initial location, skip
                 v0_init, v1_init, v2_init = self._dynamic_mesh.initial_vertices[v0_idx], \
                                             self._dynamic_mesh.initial_vertices[v1_idx], \
                                             self._dynamic_mesh.initial_vertices[v2_idx]
-                if (self._dynamic_mesh.initial_vertices[dyn_ver_idx] - 1 / 3 * (v0_init + v1_init + v2_init)).norm() < self.self_collision_threshold:
-                    continue
+                # if (self._dynamic_mesh.initial_vertices[dyn_ver_idx] - 1 / 3 * (v0_init + v1_init + v2_init)).norm() < self.self_collision_threshold:
+                #     continue
 
                 # narrow detection
                 t = ray_triangle_intersect(ray_origin, ray_direction, v0, v1, v2)
@@ -262,6 +264,7 @@ class Simulation(object):
 
             # add self constraint if has
             if min_t < float('inf'):
+                print('collision detected')
                 v0 = self._dynamic_mesh.estimated_vertices[min_v0_idx]
                 v1 = self._dynamic_mesh.estimated_vertices[min_v1_idx]
                 v2 = self._dynamic_mesh.estimated_vertices[min_v2_idx]
@@ -375,10 +378,7 @@ class Simulation(object):
 
             # projection
             s = constraint / (dc_dq.norm() ** 2 + dc_dp0.norm() ** 2 + dc_dp1.norm() ** 2 + dc_dp2.norm() ** 2)
-            if self.self_col_factor >= 1.0:
-                s *= self.self_col_factor
-            else:
-                s *= (1 - (1-self.self_col_factor) ** (1 / self.solver_iterations))
+            s *= self.self_col_factor
 
             self._dynamic_mesh.estimated_vertices[v0_idx] += -s * dc_dp0
             self._dynamic_mesh.estimated_vertices[v1_idx] += -s * dc_dp1
@@ -389,6 +389,7 @@ class Simulation(object):
     def simulate_calibration_all(self):
         # update velocities and positions
         for i in ti.ndrange(self._mesh_now.velocities.shape[0]):
+            print(i, self._mesh_now.vertices[i], self._mesh_now.estimated_vertices[i], self._mesh_now.velocities[i])
             self._mesh_now.velocities[i] = (self._mesh_now.estimated_vertices[i] - self._mesh_now.vertices[i]) / self.time_step
             # self._mesh_now.velocities[i] = self._mesh_now.velocities[i] * self.velocity_damping
             self._mesh_now.vertices[i] = self._mesh_now.estimated_vertices[i]
